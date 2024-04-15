@@ -1,0 +1,11 @@
+# Build output
+/target
+
+# Jetbrains IDE stuff
+.idea/
+
+# cargo flamegraph output
+flamegraph.svg
+
+# 100GB test file
+/test_files/huge.txt

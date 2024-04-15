@@ -1,0 +1,47 @@
+[package]
+name = "cuniq"
+version = "1.0.0"
+description = "Count unique lines"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories = ["command-line-utilities"]
+autobenches = false
+
+# despite the workspace emitting warnings, these profiles ARE used when `cargo install`ing the crate
+# tracking issue: https://github.com/rust-lang/cargo/issues/8264
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[profile.release-optimized-debug]
+inherits = "release"
+strip = false # required for `cargo-bloat`
+debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output significantly better
+
+[features]
+default = ["memmap", "compile-time-rng"]
+# Ability to read files via memory-mapping
+memmap = ["line_cardinality/memmap"]
+compile-time-rng = ["line_cardinality/compile-time-rng"]
+# Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.
+bench = ["memmap"]
+
+[dependencies]
+clap = { version = "4", features = ["derive", "wrap_help"] }
+cfg-if.workspace = true
+line_cardinality = { path = "../line_cardinality", version = "1", default-features = false, features = ["ahash", "file", "hash-only"] }
+bstr.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+memmap2.workspace = true
+
+[[bench]]
+name = "benches"
+harness = false
+required-features = ["bench"]

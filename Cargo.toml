@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = [
+    "cuniq",
+    "line_cardinality",
+]
+
+[workspace.package]
+authors = ["Michael Ripley <zkxs00@gmail.com>"]
+edition = "2021"
+license = "GPL-3.0-or-later"
+readme = "README.md"
+repository = "https://github.com/zkxs/line-cardinality"
+keywords = ["count", "unique", "cardinality"]
+
+# These profiles are duplicated from the cuniq binary, as they're used by local tools but NOT remote cargo install.
+# tracking issue: https://github.com/rust-lang/cargo/issues/8264
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[profile.release-optimized-debug]
+inherits = "release"
+strip = false # required for `cargo-bloat`
+debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output significantly better
+
+[workspace.dependencies]
+cfg-if = "1"
+criterion = "0.5"
+memmap2 = "0.9"
+bstr = "1"
+hashbrown = "0.14"

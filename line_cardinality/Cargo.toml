@@ -1,0 +1,43 @@
+[package]
+name = "line_cardinality"
+version = "1.0.0"
+description = "High performance line cardinality counts and estimates"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories = []
+autobenches = false
+
+[features]
+default = ["ahash", "compile-time-rng", "memchr"]
+# Ability to read file handles via Read/BufRead
+file = []
+# Ability to read file handles via memory-mapping
+memmap = ["dep:memmap2", "memchr"]
+# Enables compile-time RNG for ahash seed
+compile-time-rng = ["ahash/compile-time-rng"]
+# Enables an algorithm that only stores hashes and does not properly check lines for equality (e.g. it's prone to rare collisions)
+hash-only = ["dep:hashbrown"]
+# Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.
+bench = ["ahash", "memmap", "memchr", "file"]
+
+[dependencies]
+cfg-if.workspace = true
+# More performant hashing algorithm
+ahash = { version = "0.8", default-features = false, optional = true }
+memmap2 = { workspace = true, optional = true }
+# Ability to read data from &[u8]
+memchr = { version = "2", optional = true }
+bstr.workspace = true
+hashbrown = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "benches"
+harness = false
+required-features = ["bench"]
