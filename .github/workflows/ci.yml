@@ -77,7 +77,9 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target.triple }}
       - name: Check
-        run: cargo +nightly clippy --all-features --all-targets --target ${{ matrix.target.triple }}
+        run: cargo +nightly clippy --all-features --target ${{ matrix.target.triple }}
+      - name: Check benches
+        run: cargo +nightly clippy --benches --no-default-features --features bench --target ${{ matrix.target.triple }}
       - name: Test (no features)
         if: matrix.target.runner-can-execute
         run: cargo +nightly test --no-default-features --target ${{ matrix.target.triple }}
