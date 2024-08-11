@@ -10,7 +10,7 @@ authors = ["Michael Ripley <zkxs00@gmail.com>"]
 edition = "2021"
 license = "GPL-3.0-or-later"
 readme = "README.md"
-repository = "https://github.com/zkxs/line-cardinality"
+repository = "https://github.com/zkxs/cuniq"
 keywords = ["count", "unique", "cardinality"]
 
 # These profiles are duplicated from the cuniq binary, as they're used by local tools but NOT remote cargo install.
