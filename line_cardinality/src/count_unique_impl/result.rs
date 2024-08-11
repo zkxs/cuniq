@@ -13,6 +13,7 @@ enum Message {
     Static(&'static str),
 }
 
+/// Contains the cause of an [`Error`]
 #[derive(Debug)]
 pub enum Cause {
     /// IO error

@@ -5,7 +5,7 @@ use std::f64::consts::E;
 #[cfg(not(feature = "ahash"))]
 use std::hash::BuildHasher;
 
-use crate::{CountUnique, Error};
+use crate::{CountUnique, EmitLines, Error};
 
 use super::{init_hasher_state, RandomState};
 
@@ -13,6 +13,14 @@ type Hash = u64;
 
 const DEFAULT_SIZE: usize = 65536;
 
+/// Estimates the unique count and holds necessary state. The estimate is performed using
+/// [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog), a state-of-the art cardinality
+/// approximation algorithm. This uses constant memory
+///
+/// This implementation also has accepts a customizable `line_mapper` function with
+/// [`HyperLogLog::with_line_mapper`]. If provided, this function will be applied to each
+/// line before checking if it is unique or not. Note that this also affects the output that will be
+/// seen from functions that enumerate internal state, such as [`EmitLines::for_each_line`].
 pub struct HyperLogLog<M> {
     random_state: RandomState,
     size: usize,
@@ -58,16 +66,12 @@ impl Default for HyperLogLog<()> {
 
 /// Constructors that do not take a custom line mapper
 impl HyperLogLog<()> {
-    /// Creates a new count_unique_impl.
+    /// Creates a new [`HyperLogLog`] with 65536 bytes of memory used to store state.
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_SIZE).unwrap()
     }
 
-    /// Creates a new count_unique_impl with a cardinality hint of `capacity`.
-    ///
-    /// Note that it is best to leave `capacity` unset unless you have a near-perfect idea of your
-    /// data's cardinality lower bound, as it is extremely difficult to gain performance by setting
-    /// it, but extremely easy to lose performance.
+    /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state.
     pub fn with_capacity(size: usize) -> Result<Self, Error> {
         let SizeInfo { bits, shift_bits, mask } = check_size(size)?;
         Ok(HyperLogLog {
@@ -88,18 +92,14 @@ impl<M> HyperLogLog<M>
 where
     M: for<'a> FnMut(&'a [u8], &'a mut Vec<u8>) -> &'a [u8],
 {
-    /// Creates a new count_unique_impl with a custom `line_mapper` function which will be applied to
-    /// each read line before counting.
+    /// Creates a new [`HyperLogLog`] with 65536 bytes of memory used to store state and a custom
+    /// `line_mapper` function which will be applied to each read line before counting.
     pub fn with_line_mapper(line_mapper: M) -> Self {
         Self::with_line_mapper_and_capacity(line_mapper, DEFAULT_SIZE).unwrap()
     }
 
-    /// Creates a new count_unique_impl with a cardinality hint of `capacity` and a custom
+    /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state and a custom
     /// `line_mapper` function which will be applied to each read line before counting.
-    ///
-    /// Note that it is best to leave `capacity` unset unless you have a near-perfect idea of your
-    /// data's cardinality lower bound, as it is extremely difficult to gain performance by setting
-    /// it, but extremely easy to lose performance.
     pub fn with_line_mapper_and_capacity(line_mapper: M, size: usize) -> Result<Self, Error> {
         let SizeInfo { bits, shift_bits, mask } = check_size(size)?;
         Ok(HyperLogLog {

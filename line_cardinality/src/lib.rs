@@ -1,11 +1,15 @@
 // This file is part of line_cardinality. Copyright © 2024 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
-//! line_cardinality provides utilities to count unique lines from input data. It can read from a
+//! line_cardinality provides utilities to count or estimate unique lines from input data. It can read from a
 //! [`BufRead`] (such as stdin) or a file using optimized file reading functions.
 //!
 //! Note line_cardinality only supports newline (`\n`) delimited input and does not perform any
 //! UTF-8 validation: all lines are compared by byte value alone.
+//!
+//! Examples of counting total distinct lines can be found in [`CountUnique`].
+//!
+//! Examples of reporting occurrences of each distinct line can be found in [`ReportUnique`].
 
 #![feature(hash_raw_entry)]
 

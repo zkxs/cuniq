@@ -30,7 +30,7 @@ jobs:
         with:
           toolchain: stable
       - name: Publish line_cardinality
-        run: cargo publish --package line_cardinality
+        run: cargo publish --package line_cardinality --all-features
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN_LINE_CARDINALITY }}
       - name: Publish cuniq

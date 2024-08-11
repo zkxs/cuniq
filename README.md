@@ -136,5 +136,5 @@ cuniq is distributed in the hope that it will be useful, but WITHOUT ANY WARRANT
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the [GNU General Public License](LICENSE) for more
 details.
 
-A full list of dependencies is available in [Cargo.toml](Cargo.toml), or a breakdown of dependencies by license can be
+A full list of dependencies is available in [Cargo.toml](cuniq/Cargo.toml), or a breakdown of dependencies by license can be
 generated with `cargo deny list`.

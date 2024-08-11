@@ -1,11 +1,11 @@
 [package]
 name = "line_cardinality"
-version = "1.0.1"
+version = "1.0.2"
 description = "High performance line cardinality counts and estimates"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-readme.workspace = true
+readme = "README.md"
 repository.workspace = true
 keywords.workspace = true
 categories = []

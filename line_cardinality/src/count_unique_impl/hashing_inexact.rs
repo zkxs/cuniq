@@ -7,10 +7,19 @@ use std::hash::BuildHasher;
 use hashbrown::HashTable;
 
 use crate::count_unique_impl::init_hasher_state;
-use crate::CountUnique;
+use crate::{CountUnique, EmitLines};
 
 use super::RandomState;
 
+/// Calculates the unique count and holds necessary state. Internally, a [`HashTable`] is created that
+/// contains an entry for each distinct line in the input. This may be expensive to drop if it contains a large
+/// amount of processed data, so using [`std::mem::forget`] may be worth considering if your application
+/// will terminate immediately after finishing the unique-counting work.
+///
+/// This implementation also has accepts a customizable `line_mapper` function with
+/// [`InexactHashingLineCounter::with_line_mapper`]. If provided, this function will be applied to each
+/// line before checking if it is unique or not. Note that this also affects the output that will be
+/// seen from functions that enumerate internal state, such as [`EmitLines::for_each_line`].
 pub struct InexactHashingLineCounter<M>
 where
 {
@@ -29,12 +38,12 @@ impl Default for InexactHashingLineCounter<()> {
 
 /// Constructors that do not take a custom line mapper
 impl InexactHashingLineCounter<()> {
-    /// Creates a new count_unique_impl.
+    /// Creates a new [`InexactHashingLineCounter`].
     pub fn new() -> Self {
         Self::with_capacity(0)
     }
 
-    /// Creates a new count_unique_impl with a cardinality hint of `capacity`.
+    /// Creates a new [`InexactHashingLineCounter`] with a cardinality hint of `capacity`.
     ///
     /// Note that it is best to leave `capacity` unset unless you have a near-perfect idea of your
     /// data's cardinality lower bound, as it is extremely difficult to gain performance by setting
@@ -55,13 +64,13 @@ impl<M> InexactHashingLineCounter<M>
 where
     M: for<'a> FnMut(&'a [u8], &'a mut Vec<u8>) -> &'a [u8],
 {
-    /// Creates a new count_unique_impl with a custom `line_mapper` function which will be applied to
+    /// Creates a new [`InexactHashingLineCounter`] with a custom `line_mapper` function which will be applied to
     /// each read line before counting.
     pub fn with_line_mapper(line_mapper: M) -> Self {
         Self::with_line_mapper_and_capacity(line_mapper, 0)
     }
 
-    /// Creates a new count_unique_impl with a cardinality hint of `capacity` and a custom
+    /// Creates a new [`InexactHashingLineCounter`] with a cardinality hint of `capacity` and a custom
     /// `line_mapper` function which will be applied to each read line before counting.
     ///
     /// Note that it is best to leave `capacity` unset unless you have a near-perfect idea of your
