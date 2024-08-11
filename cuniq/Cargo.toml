@@ -1,6 +1,6 @@
 [package]
 name = "cuniq"
-version = "1.0.0"
+version = "1.0.1"
 description = "Count unique lines"
 authors.workspace = true
 edition.workspace = true
