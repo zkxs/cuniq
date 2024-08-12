@@ -21,7 +21,7 @@ For **counting** cuniq reliably outperforms GNU sort in all cases.
 For **reporting line occurrence counts** cuniq reliably outperforms GNU uniq in all cases except one:
 
 > [!NOTE]
-> If your input has extremely few duplicates and you want a sorted report, than you're better off using `sort | uniq c`.
+> If your input has extremely few duplicates and you want a sorted report, than you're better off using `sort | uniq -c`.
 > This is because with extremely few duplicates both approaches must sort nearly all of the input, but cuniq also wastes
 > time building a hash table.
 
