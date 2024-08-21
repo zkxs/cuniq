@@ -9,8 +9,8 @@ being every line in the dataset being unique) the cost of inserting every item i
 benefit of not sorting.
 
 For datasets with very large cardinality exact approaches becomes infeasible as it becomes impossible to process the
-dataset in main memory. You will instead need to use a statistical estimate such as HyperLogLog. This is currently out
-of scope of the cuniq project.
+dataset in main memory. You will instead need to use a statistical estimate such as HyperLogLog. You can do this with
+`cuniq --mode=estimate`. 
 
 ## Optimizations
 
@@ -33,6 +33,12 @@ Various tweaks to cuniq were implemented and benchmarked. Tweaks that improved p
   the implementation.
 - Large data structures (e.g. the HashMap) are intentionally leaked to have the OS perform cleanup instead of letting
   Rust call destructors.
+- [HashTable](https://docs.rs/hashbrown/0.14.5/hashbrown/struct.HashTable.html) is used to further reduce HashMap
+  overhead in the mode (`--mode=near-exact`) where only hashes are stored.
+- [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog) is used in the statistical estimate mode (`--mode=estimate`).
+  HyperLogLog tends to be extremely fast, as the bounded memory it uses is small enough to live *entirely* within CPU
+  cache on modern CPUs meaning not only does it not have expensive allocations, but often it doesn't even need to read
+  main memory.
 
 # Benchmarking
 
