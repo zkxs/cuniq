@@ -12,6 +12,7 @@ use super::{init_hasher_state, RandomState};
 type Hash = u64;
 
 const DEFAULT_SIZE: usize = 65536;
+static DEFAULT_SIZE_ERROR_MESSAGE: &str = "expected DEFAULT_SIZE to be a valid size";
 
 /// Estimates the unique count and holds necessary state. The estimate is performed using
 /// [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog), a state-of-the art cardinality
@@ -68,7 +69,7 @@ impl Default for HyperLogLog<()> {
 impl HyperLogLog<()> {
     /// Creates a new [`HyperLogLog`] with 65536 bytes of memory used to store state.
     pub fn new() -> Self {
-        Self::with_capacity(DEFAULT_SIZE).unwrap()
+        Self::with_capacity(DEFAULT_SIZE).expect(DEFAULT_SIZE_ERROR_MESSAGE)
     }
 
     /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state.
@@ -95,7 +96,7 @@ where
     /// Creates a new [`HyperLogLog`] with 65536 bytes of memory used to store state and a custom
     /// `line_mapper` function which will be applied to each read line before counting.
     pub fn with_line_mapper(line_mapper: M) -> Self {
-        Self::with_line_mapper_and_capacity(line_mapper, DEFAULT_SIZE).unwrap()
+        Self::with_line_mapper_and_capacity(line_mapper, DEFAULT_SIZE).expect(DEFAULT_SIZE_ERROR_MESSAGE)
     }
 
     /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state and a custom

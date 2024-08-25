@@ -150,7 +150,7 @@ pub trait CountUnique: Sized {
                     self.count_line(&bytes[start..]);
                 }
             } else {
-                self.count_unique_in_read(bytes).unwrap()
+                self.count_unique_in_read(bytes).expect("somehow failed to BufRead bytes from memory!?")
             }
         }
     }
