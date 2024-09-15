@@ -10,6 +10,7 @@ repository.workspace = true
 keywords.workspace = true
 categories = ["command-line-utilities"]
 autobenches = false
+rust-version = "1.74.1"
 
 # despite the workspace emitting warnings, these profiles ARE used when `cargo install`ing the crate
 # tracking issue: https://github.com/rust-lang/cargo/issues/8264

@@ -10,6 +10,7 @@ repository.workspace = true
 keywords.workspace = true
 categories = []
 autobenches = false
+rust-version = "1.67.1"
 
 [features]
 default = ["ahash", "compile-time-rng", "memchr"]
