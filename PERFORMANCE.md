@@ -19,7 +19,9 @@ Various tweaks to cuniq were implemented and benchmarked. Tweaks that improved p
 - [`HashMap::raw_entry_mut`](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.raw_entry_mut)
   is used for deferring cloning keys until a new key is known to be required. This shows significant performance improvements
   over unconditionally cloning every key, but unfortunately requires nightly Rust to compile (pending
-  [#56167](https://github.com/rust-lang/rust/issues/56167)).
+  [#56167](https://github.com/rust-lang/rust/issues/56167)). As a workaround, I just use the [HashMap implementation
+  provided by hashbrown](https://docs.rs/hashbrown/0.14.5/hashbrown/hash_map/struct.HashMap.html), as it's ahead of the
+  features available in std.
 - [memmap](https://crates.io/crates/memmap2) is used to reduce IO cost of reading large files. This slightly hurts
   performance for small files due to setup overhead, but has scaling performance improvements for larger and larger files.
   [memchr](https://crates.io/crates/memchr) is used for performant newline searching when using memory-mapped IO.

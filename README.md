@@ -43,8 +43,8 @@ cuniq has compatible output with corresponding GNU coreutils commands:
 
 ### Installing from Source
 
-1. [Install Rust](https://www.rust-lang.org/tools/install). Nightly toolchain is required pending stabilization of the `hash_raw_entry` feature.
-2. `RUSTFLAGS="-C target-cpu=native" cargo +nightly install cuniq`
+1. [Install Rust](https://www.rust-lang.org/tools/install).
+2. `RUSTFLAGS="-C target-cpu=native" cargo install cuniq`
 
 ### Manual Installation
 
