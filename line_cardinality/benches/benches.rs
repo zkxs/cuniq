@@ -3,15 +3,12 @@
 
 //! Benchmarks for various functions
 
-#![feature(hash_raw_entry)]
-#![feature(hash_set_entry)]
-
 use std::fs::File;
 use std::path::PathBuf;
 
 use ahash::RandomState;
 use bstr::ByteSlice;
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 use line_cardinality::{CountUnique, CountUniqueFromMemmapFile, CountUniqueFromReadFile, LineCounter};
 
@@ -25,7 +22,6 @@ criterion_main!(benches);
 mod no_fn;
 mod stable_map;
 mod stable_set;
-mod siphash;
 mod string;
 mod unstable_set;
 
@@ -183,15 +179,6 @@ fn bench_tweaks(c: &mut Criterion) {
     group.bench_function("str", |bencher| {
         bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
             let mut processor = string::Processor::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
-    });
-
-    // uses built in hasher
-    group.bench_function("siphash", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = siphash::Processor::default();
             processor.count_unique_in_memmap_files(&files).unwrap();
             assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
         }, FILE_HANDLE_BATCH_SIZE);

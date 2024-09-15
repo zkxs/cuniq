@@ -1,6 +1,6 @@
 [package]
 name = "line_cardinality"
-version = "1.0.2"
+version = "2.0.0"
 description = "High performance line cardinality counts and estimates"
 authors.workspace = true
 edition.workspace = true
@@ -20,7 +20,7 @@ memmap = ["dep:memmap2", "memchr"]
 # Enables compile-time RNG for ahash seed
 compile-time-rng = ["ahash/compile-time-rng"]
 # Enables an algorithm that only stores hashes and does not properly check lines for equality (e.g. it's prone to rare collisions)
-hash-only = ["dep:hashbrown"]
+hash-only = []
 # Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.
 bench = ["ahash", "memmap", "memchr", "file"]
 
@@ -32,7 +32,7 @@ memmap2 = { workspace = true, optional = true }
 # Ability to read data from &[u8]
 memchr = { version = "2", optional = true }
 bstr.workspace = true
-hashbrown = { version = "0.14", default-features = false, optional = true }
+hashbrown = { version = "0.14", default-features = false }
 
 [dev-dependencies]
 criterion.workspace = true

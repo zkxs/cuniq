@@ -72,7 +72,7 @@ fn report<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), 
                 writer.flush().map_err(|e| Error::io_static(STDOUT_ERROR_MESSAGE, e))?;
                 std::mem::forget(report); // same explanation as below
             } else {
-                for (line, count) in processor.as_map().iter() {
+                for (line, count) in &processor {
                     write_line(&mut writer, line, count)?;
                 }
                 writer.flush().map_err(|e| Error::io_static(STDOUT_ERROR_MESSAGE, e))?;

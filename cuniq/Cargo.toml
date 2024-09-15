@@ -1,6 +1,6 @@
 [package]
 name = "cuniq"
-version = "1.0.2"
+version = "1.0.3"
 description = "Count unique lines"
 authors.workspace = true
 edition.workspace = true
@@ -34,7 +34,7 @@ bench = ["memmap"]
 [dependencies]
 clap = { version = "4", features = ["derive", "wrap_help"] }
 cfg-if.workspace = true
-line_cardinality = { path = "../line_cardinality", version = "1", default-features = false, features = ["ahash", "file", "hash-only"] }
+line_cardinality = { path = "../line_cardinality", version = "2", default-features = false, features = ["ahash", "file", "hash-only"] }
 bstr.workspace = true
 
 [dev-dependencies]

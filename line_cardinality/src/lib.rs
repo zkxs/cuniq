@@ -11,9 +11,6 @@
 //!
 //! Examples of reporting occurrences of each distinct line can be found in [`ReportUnique`].
 
-#![feature(hash_raw_entry)]
-
-use std::collections::HashMap;
 use std::io::BufRead;
 
 use bstr::io::BufReadExt;
@@ -23,11 +20,10 @@ use cfg_if::cfg_if;
 pub use count_unique_impl::file_io::memmap::CountUniqueFromMemmapFile;
 #[cfg(feature = "file")]
 pub use count_unique_impl::file_io::read::CountUniqueFromReadFile;
-pub use count_unique_impl::hashing::HashingLineCounter;
+pub use count_unique_impl::hashing::{HashingLineCounter, HashingLineCounterIntoIter, HashingLineCounterIter};
 #[cfg(feature = "hash-only")]
 pub use count_unique_impl::hashing_inexact::InexactHashingLineCounter;
 pub use count_unique_impl::hyperloglog::HyperLogLog;
-use count_unique_impl::RandomState;
 pub use count_unique_impl::result::Cause as ErrorCause;
 pub use count_unique_impl::result::Error;
 use count_unique_impl::result::Result;
@@ -189,30 +185,33 @@ pub trait EmitLines {
 /// line_counter.count_unique_in_read(data.as_slice()).unwrap();
 ///
 /// // we can get occurrence counts for individual lines
-/// assert!(matches!(line_counter.as_map().get(b"one".as_slice()).as_ref(), Some(1)));
-/// assert!(matches!(line_counter.as_map().get(b"two".as_slice()).as_ref(), Some(2)));
-/// assert!(matches!(line_counter.as_map().get(b"three".as_slice()).as_ref(), Some(3)));
+/// assert!(matches!(line_counter.get(b"one".as_slice()), Some(1)));
+/// assert!(matches!(line_counter.get(b"two".as_slice()), Some(2)));
+/// assert!(matches!(line_counter.get(b"three".as_slice()), Some(3)));
 ///
 /// // we can also get the total number of distinct lines in the file
 /// assert_eq!(line_counter.count(), 3);
 /// ```
 pub trait ReportUnique<T> {
     /// `f` is called for each map entry.
-    fn for_each_report_entry<F: FnMut((&[u8], &T))>(&self, f: F);
+    fn for_each_report_entry<F: FnMut(&[u8], T)>(&self, f: F);
 
     /// Consume this [`ReportUnique`] and convert it into a [`Vec`]. This function has overhead, as
     /// it has to allocate a new Vec.
     fn to_report_vec(self) -> Vec<(Vec<u8>, T)>;
 
-    /// Access the underlying map this [`ReportUnique`] is using
-    fn as_map(&self) -> &HashMap<Vec<u8>, T, RandomState>;
+    /// Get the occurrence count for a specific line
+    fn get(&self, line: &[u8]) -> Option<T>;
 
-    /// Extract the underling map from this [`ReportUnique`], consuming it in the process.
-    fn into_map(self) -> HashMap<Vec<u8>, T, RandomState>;
+    /// Convert this [`ReportUnique`] into a borrowed iter over each entry
+    fn iter(&self) -> HashingLineCounterIter<T>;
+
+    /// Convert this [`ReportUnique`] into an owned iter over each entry
+    fn into_iter(self) -> HashingLineCounterIntoIter<T>;
 }
 
 /// A type that can count occurrences of a line
-pub trait Increment {
+pub trait Increment: Copy {
     /// Increment the current count
     fn increment(&mut self);
 

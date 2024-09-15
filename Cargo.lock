@@ -283,7 +283,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "cuniq"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "bstr",
  "cfg-if",
@@ -397,7 +397,7 @@ checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
 
 [[package]]
 name = "line_cardinality"
-version = "1.0.2"
+version = "2.0.0"
 dependencies = [
  "ahash",
  "bstr",

@@ -1,14 +1,14 @@
 // This file is part of line_cardinality. Copyright © 2024 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use crate::{CountUnique, EmitLines, Increment, ReportUnique};
 
 use super::{init_hasher_state, RandomState};
 
 /// Calculates the unique count and holds necessary state.
-/// 
+///
 /// Internally, a [`HashMap`] is created that contains an entry for each distinct line in the input.
 /// This may be expensive to drop if it contains a large amount of processed data, so using
 /// [`std::mem::forget`] may be worth considering if your application will terminate immediately
@@ -209,21 +209,76 @@ impl<C, M> ReportUnique<C> for HashingLineCounter<C, M>
 where
     C: Increment,
 {
-    fn for_each_report_entry<F: FnMut((&[u8], &C))>(&self, f: F) {
+    fn for_each_report_entry<F: FnMut(&[u8], C)>(&self, mut f: F) {
         self.map.iter()
-            .map(|(line, count)| (line.as_slice(), count.count()))
-            .for_each(f);
+            .for_each(|(line, count)| f(line, *count));
     }
 
     fn to_report_vec(self) -> Vec<(Vec<u8>, C)> {
         self.map.into_iter().collect()
     }
 
-    fn as_map(&self) -> &HashMap<Vec<u8>, C, RandomState> {
-        &self.map
+    fn get(&self, line: &[u8]) -> Option<C> {
+        self.map.get(line).copied()
     }
 
-    fn into_map(self) -> HashMap<Vec<u8>, C, RandomState> {
-        self.map
+    fn iter(&self) -> HashingLineCounterIter<C> {
+        HashingLineCounterIter { inner: self.map.iter() }
+    }
+
+    fn into_iter(self) -> HashingLineCounterIntoIter<C> {
+        HashingLineCounterIntoIter { inner: self.map.into_iter() }
+    }
+}
+
+impl<'a, C, M> IntoIterator for &'a HashingLineCounter<C, M>
+where
+    C: Increment,
+{
+    type Item = (&'a [u8], &'a C);
+    type IntoIter = HashingLineCounterIter<'a, C>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        HashingLineCounterIter { inner: self.map.iter() }
+    }
+}
+
+/// A borrowing iter over report entries.
+///
+/// Currently implemented as a wrapper around [`hashbrown::hash_map::Iter`]. This is done to
+/// avoid breaking changes if the internal map implementation changes.
+pub struct HashingLineCounterIter<'a, C> {
+    inner: hashbrown::hash_map::Iter<'a, Vec<u8>, C>,
+}
+
+/// wrapper around [`hashbrown::hash_map::Iter`]'s Iterator impl
+impl<'a, C> Iterator for HashingLineCounterIter<'a, C>
+where
+    C: Increment,
+{
+    type Item = (&'a [u8], &'a C);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(key, value)| (key.as_slice(), value))
+    }
+}
+
+/// An owned iter over report entries.
+///
+/// Currently implemented as a wrapper around [`hashbrown::hash_map::IntoIter`]. This is done to
+/// avoid breaking changes if the internal map implementation changes.
+pub struct HashingLineCounterIntoIter<C> {
+    inner: hashbrown::hash_map::IntoIter<Vec<u8>, C>,
+}
+
+/// wrapper around [`hashbrown::hash_map::IntoIter`]'s Iterator impl
+impl<C> Iterator for HashingLineCounterIntoIter<C>
+where
+    C: Increment,
+{
+    type Item = (Vec<u8>, C);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
     }
 }
