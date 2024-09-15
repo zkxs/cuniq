@@ -17,7 +17,7 @@ dataset in main memory. You will instead need to use a statistical estimate such
 Various tweaks to cuniq were implemented and benchmarked. Tweaks that improved performance were retained:
 
 - [`HashMap::raw_entry_mut`](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.raw_entry_mut)
-  is used for deferring cloning keys until a new key is know to be required. This shows significant performance improvements
+  is used for deferring cloning keys until a new key is known to be required. This shows significant performance improvements
   over unconditionally cloning every key, but unfortunately requires nightly Rust to compile (pending
   [#56167](https://github.com/rust-lang/rust/issues/56167)).
 - [memmap](https://crates.io/crates/memmap2) is used to reduce IO cost of reading large files. This slightly hurts
@@ -87,25 +87,26 @@ The test file is 32 GiB dump of slightly preprocessed Wikipedia text. The file h
 newline), of which 78,035,032 are unique (1.3% cardinality). Times were recorded using bash's `time` builtin. The best
 times for the "Count", "Report" and "Report (Sorted)" categories are bolded.
 
-| Command                                   | Version  | Real Time     | User Time  | Sys Time  | Operation        | Notes                                                       |
-|-------------------------------------------|----------|---------------|------------|-----------|------------------|-------------------------------------------------------------|
-| `wc -l huge.txt`                          | GNU 8.32 | 0m23.612s     | 0m8.625s   | 0m4.796s  | N/A              | a decent baseline for how quickly the file can be traversed |
-| `sort -u huge.txt \| wc -l`               | GNU 8.32 | 13m29.613s    | 31m58.686s | 0m16.108s | Count            |                                                             |
-| `sort huge.txt \| uniq -c > /dev/null`    | GNU 8.32 | 28m13.754s    | 36m58.639s | 0m38.624s | Report (sorted)  |                                                             |
-| `cuniq huge.txt`                          | 1.0.0    | 4m09.794s     | 0m0.000s   | 0m0.015s  | Count            |                                                             |
-| `cuniq --no-memmap huge.txt`              | 1.0.0    | 3m20.319s     | 0m0.000s   | 0m0.016s  | Count            |                                                             |
-| `cuniq < huge.txt`                        | 1.0.0    | 3m19.071s     | 0m0.000s   | 0m0.015s  | Count            |                                                             |
-| `cuniq -c huge.txt > /dev/null`           | 1.0.0    | **4m36.895s** | 0m0.000s   | 0m0.030s  | Report           |                                                             |
-| `cuniq -cs huge.txt > /dev/null`          | 1.0.0    | **5m05.738s** | 0m0.000s   | 0m0.000s  | Report (sorted)  |                                                             |
-| `cuniq --mode=near-exact huge.txt`        | 1.0.0    | **2m3.940s**  | 0m0.000s   | 0m0.000s  | Count            | only stores hash                                            |
-| `cuniq --mode=estimate huge.txt`          | 1.0.0    | 1m30.028s     | 0m0.000s   | 0m0.000s  | Count (estimate) | HyperLogLog estimate w/ 0.16% error                         |
-| `sortuniq < huge.txt \| wc -l`            | 0.2.0    | 12m27.609s    | 0m3.859s   | 0m15.843s | Count            |                                                             |
-| `sortuniq -c < huge.txt > /dev/null`      | 0.2.0    | 12m1.088s     | 0m0.000s   | 0m0.000s  | Report           |                                                             |
-| `runiq --filter=simple huge.txt \| wc -l` | 2.0.0    | 11m59.739s    | 0m3.875s   | 0m17.421s | Count            |                                                             |
-| `runiq huge.txt \| wc -l`                 | 2.0.0    | 6m9.880s      | 0m46.984s  | 3m39.093s | Count            | only stores hash                                            |
-| `huniq < huge.txt \| wc -l`               | 2.7.0    | 4m30.499s     | 0m31.500s  | 2m23.250s | Count            | only stores hash                                            |
-| `huniq -c < huge.txt > /dev/null`         | 2.7.0    | 10m21.352s    | 0m0.000s   | 0m0.015s  | Report           |                                                             |
-| `huniq -cs < huge.txt > /dev/null`        | 2.7.0    | 10m25.526s    | 0m0.000s   | 0m0.000s  | Report (sorted)  |                                                             |
+| Command                                                                              | Version  | Real Time     | User Time  | Sys Time  | Operation        | Notes                                                       |
+| ------------------------------------------------------------------------------------ | -------- | ------------- | ---------- | --------- | ---------------- | ----------------------------------------------------------- |
+| `wc -l huge.txt`                                                                     | GNU 8.32 | 0m23.612s     | 0m8.625s   | 0m4.796s  | N/A              | a decent baseline for how quickly the file can be traversed |
+| `sort -u huge.txt \| wc -l`                                                          | GNU 8.32 | 13m29.613s    | 31m58.686s | 0m16.108s | Count            |                                                             |
+| `sort huge.txt \| uniq -c > /dev/null`                                               | GNU 8.32 | 28m13.754s    | 36m58.639s | 0m38.624s | Report (sorted)  |                                                             |
+| `cuniq huge.txt`                                                                     | 1.0.0    | 4m09.794s     | 0m0.000s   | 0m0.015s  | Count            |                                                             |
+| `cuniq --no-memmap huge.txt`                                                         | 1.0.0    | 3m20.319s     | 0m0.000s   | 0m0.016s  | Count            |                                                             |
+| `cuniq < huge.txt`                                                                   | 1.0.0    | 3m19.071s     | 0m0.000s   | 0m0.015s  | Count            |                                                             |
+| `cuniq -c huge.txt > /dev/null`                                                      | 1.0.0    | **4m36.895s** | 0m0.000s   | 0m0.030s  | Report           |                                                             |
+| `cuniq -cs huge.txt > /dev/null`                                                     | 1.0.0    | **5m05.738s** | 0m0.000s   | 0m0.000s  | Report (sorted)  |                                                             |
+| `cuniq --mode=near-exact huge.txt`                                                   | 1.0.0    | **2m3.940s**  | 0m0.000s   | 0m0.000s  | Count            | only stores hash                                            |
+| `cuniq --mode=estimate huge.txt`                                                     | 1.0.0    | 1m30.028s     | 0m0.000s   | 0m0.000s  | Count (estimate) | HyperLogLog estimate w/ 0.16% error                         |
+| `sortuniq < huge.txt \| wc -l`                                                       | 0.2.0    | 12m27.609s    | 0m3.859s   | 0m15.843s | Count            |                                                             |
+| `sortuniq -c < huge.txt > /dev/null`                                                 | 0.2.0    | 12m1.088s     | 0m0.000s   | 0m0.000s  | Report           |                                                             |
+| `runiq --filter=simple huge.txt \| wc -l`                                            | 2.0.0    | 11m59.739s    | 0m3.875s   | 0m17.421s | Count            |                                                             |
+| `runiq huge.txt \| wc -l`                                                            | 2.0.0    | 6m9.880s      | 0m46.984s  | 3m39.093s | Count            | only stores hash                                            |
+| `huniq < huge.txt \| wc -l`                                                          | 2.7.0    | 4m30.499s     | 0m31.500s  | 2m23.250s | Count            | only stores hash                                            |
+| `huniq -c < huge.txt > /dev/null`                                                    | 2.7.0    | 10m21.352s    | 0m0.000s   | 0m0.015s  | Report           |                                                             |
+| `huniq -cs < huge.txt > /dev/null`                                                   | 2.7.0    | 10m25.526s    | 0m0.000s   | 0m0.000s  | Report (sorted)  |                                                             |
+| `awk '{ a[$0]++ }; END { for (x in a) { print x ": " a[x] } }' huge.txt > /dev/null` | 5.0.0    | 15m47.790s    | 15m24.546s | 0m11.968s | Report           |                                                             |
 
 The commands that are noted as "only stores hash" are in theory vulnerable to hash collisions, but in practice with the
 64-bit hashes they're using it would be extraordinarily rare to see incorrect results.
