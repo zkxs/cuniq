@@ -7,10 +7,12 @@ use crate::{CountUnique, EmitLines, Increment, ReportUnique};
 
 use super::{init_hasher_state, RandomState};
 
-/// Calculates the unique count and holds necessary state. Internally, a [`HashMap`] is created that
-/// contains an entry for each distinct line in the input. This may be expensive to drop if it contains a large
-/// amount of processed data, so using [`std::mem::forget`] may be worth considering if your application
-/// will terminate immediately after finishing the unique-counting work.
+/// Calculates the unique count and holds necessary state.
+/// 
+/// Internally, a [`HashMap`] is created that contains an entry for each distinct line in the input.
+/// This may be expensive to drop if it contains a large amount of processed data, so using
+/// [`std::mem::forget`] may be worth considering if your application will terminate immediately
+/// after finishing the unique-counting work.
 ///
 /// This implementation also has accepts a customizable `line_mapper` function with
 /// [`HashingLineCounter::with_line_mapper`]. If provided, this function will be applied to each

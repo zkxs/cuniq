@@ -5,7 +5,7 @@ use std::f64::consts::E;
 #[cfg(not(feature = "ahash"))]
 use std::hash::BuildHasher;
 
-use crate::{CountUnique, EmitLines, Error};
+use crate::{CountUnique, Error};
 
 use super::{init_hasher_state, RandomState};
 
@@ -14,14 +14,16 @@ type Hash = u64;
 const DEFAULT_SIZE: usize = 65536;
 static DEFAULT_SIZE_ERROR_MESSAGE: &str = "expected DEFAULT_SIZE to be a valid size";
 
-/// Estimates the unique count and holds necessary state. The estimate is performed using
-/// [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog), a state-of-the art cardinality
-/// approximation algorithm. This uses constant memory
+/// Estimates the unique count and holds necessary state.
+///
+/// The estimate is performed using [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog), a
+/// state-of-the art cardinality approximation algorithm. This uses constant memory.
 ///
 /// This implementation also has accepts a customizable `line_mapper` function with
 /// [`HyperLogLog::with_line_mapper`]. If provided, this function will be applied to each
 /// line before checking if it is unique or not. Note that this also affects the output that will be
-/// seen from functions that enumerate internal state, such as [`EmitLines::for_each_line`].
+/// seen from functions that enumerate internal state, such as
+/// [`EmitLines::for_each_line`](crate::EmitLines::for_each_line).
 pub struct HyperLogLog<M> {
     random_state: RandomState,
     size: usize,
