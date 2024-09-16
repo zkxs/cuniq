@@ -72,7 +72,7 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Setup Rust nightly toolchain
-        run: rustup toolchain install --profile minimal --target ${{ matrix.target.triple }} --component rust-src --component clippy nightly
+        run: rustup toolchain install --profile minimal --target ${{ matrix.target.triple }} --component rust-src clippy -- nightly
       - name: Check
         run: cargo +nightly clippy --all-features --target ${{ matrix.target.triple }}
       - name: Check benches
