@@ -43,12 +43,22 @@ cuniq has compatible output with corresponding GNU coreutils commands:
 
 ### Installing from Source
 
-1. [Install Rust](https://www.rust-lang.org/tools/install).
-2. `RUSTFLAGS="-C target-cpu=native" cargo install cuniq`
+Firstly, [Install Rust](https://www.rust-lang.org/tools/install).
+
+Install from crates.io:
+`RUSTFLAGS="-C target-cpu=native" cargo install cuniq`
+
+Alternatively, install from GitHub:
+`RUSTFLAGS="-C target-cpu=native" cargo install --git=https://github.com/zkxs/cuniq`
 
 ### Manual Installation
 
-1. Download cuniq from the [latest release](https://github.com/zkxs/cuniq/releases/latest), and save it to a location of your choice
+Download cuniq from the [latest release](https://github.com/zkxs/cuniq/releases/latest), and save it to a location of your choice
+
+### Install from AUR (on Arch Linux)
+```
+yay -S cuniq
+```
 
 ## Usage
 
