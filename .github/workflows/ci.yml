@@ -46,14 +46,14 @@ jobs:
             artifact-suffix: -mac-x86
             suffix: ''
             path-separator: '/'
-            runner-can-execute: true
+            runner-can-execute: false
           - runs-on: macos-latest
             triple: aarch64-apple-darwin
             build-name: macOS ARM
             artifact-suffix: -mac-arm
             suffix: ''
             path-separator: '/'
-            runner-can-execute: false
+            runner-can-execute: true
       fail-fast: false
     name: Test ${{ matrix.target.build-name }}
     runs-on: ${{ matrix.target.runs-on }}
@@ -71,18 +71,14 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.target.triple }}
+        run: rustup target add ${{ matrix.target.triple }}
       - name: Check
-        run: cargo +nightly clippy --all-features --target ${{ matrix.target.triple }}
+        run: cargo clippy --all-features --target ${{ matrix.target.triple }}
       - name: Check benches
-        run: cargo +nightly clippy --benches --no-default-features --features bench --target ${{ matrix.target.triple }}
+        run: cargo clippy --benches --no-default-features --features bench --target ${{ matrix.target.triple }}
       - name: Test (no features)
         if: matrix.target.runner-can-execute
-        run: cargo +nightly test --no-default-features --target ${{ matrix.target.triple }}
+        run: cargo test --no-default-features --target ${{ matrix.target.triple }}
       - name: Test (all features)
         if: matrix.target.runner-can-execute
-        run: cargo +nightly test --all-features --target ${{ matrix.target.triple }}
+        run: cargo test --all-features --target ${{ matrix.target.triple }}

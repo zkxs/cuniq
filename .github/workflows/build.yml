@@ -47,14 +47,14 @@ jobs:
             artifact-suffix: -mac-x86
             suffix: ''
             path-separator: '/'
-            runner-can-execute: true
+            runner-can-execute: false
           - runs-on: macos-latest
             triple: aarch64-apple-darwin
             build-name: macOS ARM
             artifact-suffix: -mac-arm
             suffix: ''
             path-separator: '/'
-            runner-can-execute: false
+            runner-can-execute: true
       fail-fast: false
     name: Build ${{ matrix.target.build-name }}
     runs-on: ${{ matrix.target.runs-on }}
@@ -71,19 +71,8 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Setup Rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.target.triple }}
       - name: Setup Rust nightly toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: rust-src
-          target: ${{ matrix.target.triple }}
+        run: rustup toolchain install --profile minimal --target ${{ matrix.target.triple }} --component rust-src --component clippy nightly
       - name: Check
         run: cargo +nightly clippy --all-features --target ${{ matrix.target.triple }}
       - name: Check benches
