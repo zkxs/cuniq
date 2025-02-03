@@ -3,7 +3,7 @@
 A library that provides high performance line cardinality counts and estimates, including:
 - Hashing with collision detection
 - Hashing **without** collision detection. Note that collisions are nearly impossible for 64-bit hashes, and this has higher performance due to not having to store lines.
-- [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog
+- [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 
 Full API documentation at [docs.rs](https://docs.rs/line_cardinality/latest/line_cardinality/).
 See [PERFORMANCE.md](../PERFORMANCE.md) for performance data and technical details on the benchmarking and
