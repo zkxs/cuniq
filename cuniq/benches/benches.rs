@@ -85,24 +85,26 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         // sort input.txt | uniq | wc -l
         group.bench_function("uniq", |bencher| {
             bencher.iter(|| {
-                let sort = Command::new(r"C:\Program Files\Git\usr\bin\sort.exe")
+                let mut sort = Command::new(r"C:\Program Files\Git\usr\bin\sort.exe")
                     .arg(path_buf.as_os_str())
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
-                let uniq = Command::new(r"C:\Program Files\Git\usr\bin\uniq.exe")
-                    .stdin(Stdio::from(sort.stdout.unwrap()))
+                let mut uniq = Command::new(r"C:\Program Files\Git\usr\bin\uniq.exe")
+                    .stdin(Stdio::from(sort.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let wc = Command::new(r"C:\Program Files\Git\usr\bin\wc.exe")
                     .arg("-l")
-                    .stdin(Stdio::from(uniq.stdout.unwrap()))
+                    .stdin(Stdio::from(uniq.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let output = wc.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
+                sort.wait().unwrap();
+                uniq.wait().unwrap();
                 assert_eq!(result, &expected);
             });
         });
@@ -110,7 +112,7 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         // sort -u input.txt | wc -l
         group.bench_function("sort", |bencher| {
             bencher.iter(|| {
-                let sort = Command::new(r"C:\Program Files\Git\usr\bin\sort.exe")
+                let mut sort = Command::new(r"C:\Program Files\Git\usr\bin\sort.exe")
                     .arg("-u")
                     .arg(path_buf.as_os_str())
                     .stdout(Stdio::piped())
@@ -118,12 +120,13 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
                     .unwrap();
                 let wc = Command::new(r"C:\Program Files\Git\usr\bin\wc.exe")
                     .arg("-l")
-                    .stdin(Stdio::from(sort.stdout.unwrap()))
+                    .stdin(Stdio::from(sort.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let output = wc.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
+                sort.wait().unwrap();
                 assert_eq!(result, &expected);
             });
         });
@@ -166,19 +169,20 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         // note that sortuniq only supports stdin
         group.bench_function("sortuniq", |bencher| {
             bencher.iter(|| {
-                let sortuniq = Command::new("sortuniq.exe")
+                let mut sortuniq = Command::new("sortuniq.exe")
                     .stdin(Stdio::from(File::open(&path_buf).unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let wc = Command::new(r"C:\Program Files\Git\usr\bin\wc.exe")
                     .arg("-l")
-                    .stdin(Stdio::from(sortuniq.stdout.unwrap()))
+                    .stdin(Stdio::from(sortuniq.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let output = wc.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
+                sortuniq.wait().unwrap();
                 assert_eq!(result, &expected);
             });
         });
@@ -186,7 +190,7 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         // runiq --filter=simple input.txt
         group.bench_function("runiq", |bencher| {
             bencher.iter(|| {
-                let runiq = Command::new("runiq.exe")
+                let mut runiq = Command::new("runiq.exe")
                     .arg("--filter=simple")
                     .arg(path_buf.as_os_str())
                     .stdout(Stdio::piped())
@@ -194,12 +198,13 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
                     .unwrap();
                 let wc = Command::new(r"C:\Program Files\Git\usr\bin\wc.exe")
                     .arg("-l")
-                    .stdin(Stdio::from(runiq.stdout.unwrap()))
+                    .stdin(Stdio::from(runiq.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let output = wc.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
+                runiq.wait().unwrap();
                 assert_eq!(result, &expected);
             });
         });
@@ -208,7 +213,7 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         // note that runiq's default filter "quick" is theoretically vulnerable to hash collisions.
         group.bench_function("runiq-hash", |bencher| {
             bencher.iter(|| {
-                let runiq = Command::new("runiq.exe")
+                let mut runiq = Command::new("runiq.exe")
                     .arg("--filter=quick")
                     .arg(path_buf.as_os_str())
                     .stdout(Stdio::piped())
@@ -216,12 +221,13 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
                     .unwrap();
                 let wc = Command::new(r"C:\Program Files\Git\usr\bin\wc.exe")
                     .arg("-l")
-                    .stdin(Stdio::from(runiq.stdout.unwrap()))
+                    .stdin(Stdio::from(runiq.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let output = wc.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
+                runiq.wait().unwrap();
                 assert_eq!(result, &expected);
             });
         });
@@ -232,19 +238,20 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         // note that this is an unfair benchmark, as huniq only stores the hash
         group.bench_function("huniq", |bencher| {
             bencher.iter(|| {
-                let huniq = Command::new("huniq.exe")
+                let mut huniq = Command::new("huniq.exe")
                     .stdin(Stdio::from(File::open(&path_buf).unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let wc = Command::new(r"C:\Program Files\Git\usr\bin\wc.exe")
                     .arg("-l")
-                    .stdin(Stdio::from(huniq.stdout.unwrap()))
+                    .stdin(Stdio::from(huniq.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let output = wc.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
+                huniq.wait().unwrap();
                 assert_eq!(result, &expected);
             });
         });
@@ -268,19 +275,20 @@ fn bench_cuniq_report_vs_shell(c: &mut Criterion) {
         // sort input.txt | uniq -c
         group.bench_function("uniq", |bencher| {
             bencher.iter(|| {
-                let sort = Command::new(r"C:\Program Files\Git\usr\bin\sort.exe")
+                let mut sort = Command::new(r"C:\Program Files\Git\usr\bin\sort.exe")
                     .arg(path_buf.as_os_str())
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let uniq = Command::new(r"C:\Program Files\Git\usr\bin\uniq.exe")
                     .arg("-c")
-                    .stdin(Stdio::from(sort.stdout.unwrap()))
+                    .stdin(Stdio::from(sort.stdout.take().unwrap()))
                     .stdout(Stdio::piped())
                     .spawn()
                     .unwrap();
                 let output = uniq.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
+                sort.wait().unwrap();
                 black_box(result);
             });
         });
