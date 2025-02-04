@@ -1,11 +1,19 @@
-// This file is part of line_cardinality. Copyright © 2024 line_cardinality contributors.
+// This file is part of line_cardinality. Copyright © 2025 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
-use hashbrown::HashMap;
+#[cfg(not(feature = "ahash"))]
+use std::hash::BuildHasher;
+
+use hashbrown::HashTable;
 
 use crate::{CountUnique, EmitLines, Increment, ReportUnique};
 
 use super::{init_hasher_state, RandomState};
+
+struct Entry<T> {
+    line: Vec<u8>,
+    counter: T,
+}
 
 /// Calculates the unique count and holds necessary state.
 ///
@@ -19,7 +27,8 @@ use super::{init_hasher_state, RandomState};
 /// line before checking if it is unique or not. Note that this also affects the output that will be
 /// seen from functions that enumerate internal state, such as [`EmitLines::for_each_line`].
 pub struct HashingLineCounter<T, M> {
-    map: HashMap<Vec<u8>, T, RandomState>,
+    map: HashTable<Entry<T>>,
+    random_state: RandomState,
     string_buffer: Vec<u8>,
     count: usize,
     line_mapper: M,
@@ -45,7 +54,8 @@ impl<T> HashingLineCounter<T, ()> {
     /// it, but extremely easy to lose performance.
     pub fn with_capacity(capacity: usize) -> Self {
         HashingLineCounter {
-            map: HashMap::with_capacity_and_hasher(capacity, init_hasher_state()),
+            map: HashTable::with_capacity(capacity),
+            random_state: init_hasher_state(),
             string_buffer: Vec::new(),
             count: 0,
             line_mapper: (),
@@ -72,7 +82,8 @@ where
     /// it, but extremely easy to lose performance.
     pub fn with_line_mapper_and_capacity(line_mapper: M, capacity: usize) -> Self {
         HashingLineCounter {
-            map: HashMap::with_capacity_and_hasher(capacity, init_hasher_state()),
+            map: HashTable::with_capacity(capacity),
+            random_state: init_hasher_state(),
             string_buffer: Vec::new(),
             count: 0,
             line_mapper,
@@ -94,12 +105,18 @@ impl<T, M> HashingLineCounter<T, M> {
 impl CountUnique for HashingLineCounter<(), ()> {
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
-        self.map.raw_entry_mut()
-            .from_key(line)
-            .or_insert_with(|| {
-                self.count += 1;
-                (line.to_vec(), ())
-            });
+        let hash = self.random_state.hash_one(line);
+        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
+            let slice = entry.line.as_slice();
+            self.random_state.hash_one(slice)
+        });
+        entry.or_insert_with(|| {
+            self.count += 1;
+            Entry {
+                line: line.to_vec(),
+                counter: (),
+            }
+        });
     }
 
     fn count(&self) -> usize {
@@ -119,12 +136,18 @@ where
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
         let line = (self.line_mapper)(line, &mut self.string_buffer);
-        self.map.raw_entry_mut()
-            .from_key(line)
-            .or_insert_with(|| {
-                self.count += 1;
-                (line.to_vec(), ())
-            });
+        let hash = self.random_state.hash_one(line);
+        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
+            let slice = entry.line.as_slice();
+            self.random_state.hash_one(slice)
+        });
+        entry.or_insert_with(|| {
+            self.count += 1;
+            Entry {
+                line: line.to_vec(),
+                counter: (),
+            }
+        });
     }
 
     fn count(&self) -> usize {
@@ -142,13 +165,20 @@ where
 {
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
-        self.map.raw_entry_mut()
-            .from_key(line)
-            .and_modify(|_line, count| count.increment())
+        let hash = self.random_state.hash_one(line);
+        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
+            let slice = entry.line.as_slice();
+            self.random_state.hash_one(slice)
+        });
+        entry
+            .and_modify(|entry| entry.counter.increment())
             .or_insert_with(|| {
                 self.count += 1;
-                (line.to_vec(), C::new())
-            });
+                Entry {
+                    line: line.to_vec(),
+                    counter: C::new(),
+                }
+        });
     }
 
     fn count(&self) -> usize {
@@ -169,12 +199,19 @@ where
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
         let line = (self.line_mapper)(line, &mut self.string_buffer);
-        self.map.raw_entry_mut()
-            .from_key(line)
-            .and_modify(|_line, count| count.increment())
+        let hash = self.random_state.hash_one(line);
+        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
+            let slice = entry.line.as_slice();
+            self.random_state.hash_one(slice)
+        });
+        entry
+            .and_modify(|entry| entry.counter.increment())
             .or_insert_with(|| {
                 self.count += 1;
-                (line.to_vec(), C::new())
+                Entry {
+                    line: line.to_vec(),
+                    counter: C::new(),
+                }
             });
     }
 
@@ -195,13 +232,16 @@ where
     where
         F: FnMut(&[u8]),
     {
-        self.map.keys()
-            .map(|line| line.as_slice())
+
+        self.map.iter()
+            .map(|entry| entry.line.as_slice())
             .for_each(f);
     }
 
     fn into_vec(self) -> Vec<Vec<u8>> {
-        self.map.into_keys().collect()
+        self.map.into_iter()
+            .map(|entry| entry.line)
+            .collect()
     }
 }
 
@@ -211,15 +251,20 @@ where
 {
     fn for_each_report_entry<F: FnMut(&[u8], C)>(&self, mut f: F) {
         self.map.iter()
-            .for_each(|(line, count)| f(line, *count));
+            .for_each(|entry| f(entry.line.as_slice(), entry.counter));
     }
 
     fn to_report_vec(self) -> Vec<(Vec<u8>, C)> {
-        self.map.into_iter().collect()
+        self.map.into_iter()
+            .map(|entry| (entry.line, entry.counter))
+            .collect()
     }
 
     fn get(&self, line: &[u8]) -> Option<C> {
-        self.map.get(line).copied()
+        let hash = self.random_state.hash_one(line);
+        self.map
+            .find(hash, |entry| line == entry.line.as_slice())
+            .map(|entry| entry.counter)
     }
 
     fn iter(&self) -> HashingLineCounterIter<C> {
@@ -245,13 +290,13 @@ where
 
 /// A borrowing iter over report entries.
 ///
-/// Currently implemented as a wrapper around [`hashbrown::hash_map::Iter`]. This is done to
+/// Currently implemented as a wrapper around [`hashbrown::hash_table::Iter`]. This is done to
 /// avoid breaking changes if the internal map implementation changes.
 pub struct HashingLineCounterIter<'a, C> {
-    inner: hashbrown::hash_map::Iter<'a, Vec<u8>, C>,
+    inner: hashbrown::hash_table::Iter<'a, Entry<C>>,
 }
 
-/// wrapper around [`hashbrown::hash_map::Iter`]'s Iterator impl
+/// wrapper around [`hashbrown::hash_table::Iter`]'s Iterator impl
 impl<'a, C> Iterator for HashingLineCounterIter<'a, C>
 where
     C: Increment,
@@ -259,19 +304,19 @@ where
     type Item = (&'a [u8], &'a C);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(key, value)| (key.as_slice(), value))
+        self.inner.next().map(|entry| (entry.line.as_slice(), &entry.counter))
     }
 }
 
 /// An owned iter over report entries.
 ///
-/// Currently implemented as a wrapper around [`hashbrown::hash_map::IntoIter`]. This is done to
+/// Currently implemented as a wrapper around [`hashbrown::hash_table::IntoIter`]. This is done to
 /// avoid breaking changes if the internal map implementation changes.
 pub struct HashingLineCounterIntoIter<C> {
-    inner: hashbrown::hash_map::IntoIter<Vec<u8>, C>,
+    inner: hashbrown::hash_table::IntoIter<Entry<C>>,
 }
 
-/// wrapper around [`hashbrown::hash_map::IntoIter`]'s Iterator impl
+/// wrapper around [`hashbrown::hash_table::IntoIter`]'s Iterator impl
 impl<C> Iterator for HashingLineCounterIntoIter<C>
 where
     C: Increment,
@@ -279,6 +324,6 @@ where
     type Item = (Vec<u8>, C);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        self.inner.next().map(|entry| (entry.line, entry.counter))
     }
 }

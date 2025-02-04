@@ -19,7 +19,8 @@ compile_error!("missing required features");
 criterion_group!(benches, bench_small, bench_large, bench_tweaks);
 criterion_main!(benches);
 
-mod no_fn;
+mod hashtable_no_fn;
+mod hashmap_no_fn;
 mod stable_map;
 mod stable_set;
 mod string;
@@ -130,10 +131,19 @@ fn bench_tweaks(c: &mut Criterion) {
         }, FILE_HANDLE_BATCH_SIZE);
     });
 
+    // same as baseline, but there's no FnMut floating around AND it uses deprecated raw_entry_mut
+    group.bench_function("no-fn-map", |bencher| {
+        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
+            let mut processor = hashmap_no_fn::Processor::default();
+            processor.count_unique_in_memmap_files(&files).unwrap();
+            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+        }, FILE_HANDLE_BATCH_SIZE);
+    });
+
     // same as baseline, but there's no FnMut floating around
     group.bench_function("no-fn", |bencher| {
         bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = no_fn::Processor::default();
+            let mut processor = hashtable_no_fn::Processor::default();
             processor.count_unique_in_memmap_files(&files).unwrap();
             assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
         }, FILE_HANDLE_BATCH_SIZE);

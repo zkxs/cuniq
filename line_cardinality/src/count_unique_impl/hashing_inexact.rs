@@ -6,10 +6,8 @@ use std::hash::BuildHasher;
 
 use hashbrown::HashTable;
 
-use crate::count_unique_impl::init_hasher_state;
+use super::{init_hasher_state, RandomState};
 use crate::CountUnique;
-
-use super::RandomState;
 
 /// Calculates the unique count and holds necessary state.
 ///
