@@ -95,7 +95,7 @@ allow = [
     "GPL-3.0",
     "MIT",
     # Weirder stuff
-    "Unicode-DFS-2016", # OSI but not FSF approved. Needed by unicode-ident
+    "Unicode-3.0", # OSI but not FSF approved. Needed by unicode-ident
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -204,7 +204,6 @@ deny = [
 skip = [
     #"ansi_term@0.11.0",
     #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason why it can't be updated/removed" },
-    { crate = "windows-sys", reason = "Windows FFI" },
 ]
 # Similarly to `skip` allows you to skip certain crates during duplicate
 # detection. Unlike skip, it also includes the entire tree of transitive
@@ -213,7 +212,6 @@ skip = [
 skip-tree = [
     #"ansi_term@0.11.0", # will be skipped along with _all_ of its direct and transitive dependencies
     #{ crate = "ansi_term@0.11.0", depth = 20 },
-    { crate = "windows-targets", reason = "Windows FFI" },
 ]
 
 # This section is considered when running `cargo deny check sources`.
