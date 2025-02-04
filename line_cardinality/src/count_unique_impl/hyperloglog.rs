@@ -40,9 +40,15 @@ pub struct HyperLogLog<M> {
 
 fn check_size(size: usize) -> Result<SizeInfo, Error> {
     if !size.is_power_of_two() {
-        Err(Error::hyper_log_log(format!("HyperLogLog size must be a power of 2, but was {}", size), size))
+        Err(Error::hyper_log_log(
+            format!("HyperLogLog size must be a power of 2, but was {}", size),
+            size,
+        ))
     } else if size < 16 {
-        Err(Error::hyper_log_log(format!("HyperLogLog size must be at least 16, but was {}", size), size))
+        Err(Error::hyper_log_log(
+            format!("HyperLogLog size must be at least 16, but was {}", size),
+            size,
+        ))
     } else {
         let bits = size.ilog2();
         let shift_bits: u32 = Hash::BITS - bits;
@@ -76,7 +82,11 @@ impl HyperLogLog<()> {
 
     /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state.
     pub fn with_capacity(size: usize) -> Result<Self, Error> {
-        let SizeInfo { bits, shift_bits, mask } = check_size(size)?;
+        let SizeInfo {
+            bits,
+            shift_bits,
+            mask,
+        } = check_size(size)?;
         Ok(HyperLogLog {
             random_state: init_hasher_state(),
             size,
@@ -98,13 +108,18 @@ where
     /// Creates a new [`HyperLogLog`] with 65536 bytes of memory used to store state and a custom
     /// `line_mapper` function which will be applied to each read line before counting.
     pub fn with_line_mapper(line_mapper: M) -> Self {
-        Self::with_line_mapper_and_capacity(line_mapper, DEFAULT_SIZE).expect(DEFAULT_SIZE_ERROR_MESSAGE)
+        Self::with_line_mapper_and_capacity(line_mapper, DEFAULT_SIZE)
+            .expect(DEFAULT_SIZE_ERROR_MESSAGE)
     }
 
     /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state and a custom
     /// `line_mapper` function which will be applied to each read line before counting.
     pub fn with_line_mapper_and_capacity(line_mapper: M, size: usize) -> Result<Self, Error> {
-        let SizeInfo { bits, shift_bits, mask } = check_size(size)?;
+        let SizeInfo {
+            bits,
+            shift_bits,
+            mask,
+        } = check_size(size)?;
         Ok(HyperLogLog {
             random_state: init_hasher_state(),
             size,
@@ -144,7 +159,9 @@ impl<M> HyperLogLog<M> {
 
     #[inline(always)]
     fn count(&self) -> usize {
-        let sum: f64 = self.counters.iter()
+        let sum: f64 = self
+            .counters
+            .iter()
             .map(|value| 2f64.powf(-(*value as f64)))
             .sum();
         let sum = 1.0 / sum;
@@ -153,9 +170,7 @@ impl<M> HyperLogLog<M> {
 
         if count < size_float * 5.0 / 2.0 {
             // fall back to linear counting if cardinality estimate is below some threshold
-            let zeroed_counters = self.counters.iter()
-                .filter(|value| **value == 0)
-                .count();
+            let zeroed_counters = self.counters.iter().filter(|value| **value == 0).count();
             if zeroed_counters == 0 {
                 (count + 0.5) as usize // `as usize` truncates, so by adding 0.5 we achieve round-nearest behavior
             } else {
@@ -248,13 +263,33 @@ mod test {
 
     #[test]
     fn test_left_bits() {
-        assert_eq!(HyperLogLog::with_capacity(16).unwrap().left_bits(0x5FFFFFFFFFFFFFFF), 0x05);
-        assert_eq!(HyperLogLog::with_capacity(256).unwrap().left_bits(0x05FFFFFFFFFFFFFF), 0x05);
+        assert_eq!(
+            HyperLogLog::with_capacity(16)
+                .unwrap()
+                .left_bits(0x5FFFFFFFFFFFFFFF),
+            0x05
+        );
+        assert_eq!(
+            HyperLogLog::with_capacity(256)
+                .unwrap()
+                .left_bits(0x05FFFFFFFFFFFFFF),
+            0x05
+        );
     }
 
     #[test]
     fn test_right_bits() {
-        assert_eq!(HyperLogLog::with_capacity(16).unwrap().right_bits(0xF876543210EDCBA9), 0x0876543210EDCBA9);
-        assert_eq!(HyperLogLog::with_capacity(256).unwrap().right_bits(0xFF76543210EDCBA9), 0x0076543210EDCBA9);
+        assert_eq!(
+            HyperLogLog::with_capacity(16)
+                .unwrap()
+                .right_bits(0xF876543210EDCBA9),
+            0x0876543210EDCBA9
+        );
+        assert_eq!(
+            HyperLogLog::with_capacity(256)
+                .unwrap()
+                .right_bits(0xFF76543210EDCBA9),
+            0x0076543210EDCBA9
+        );
     }
 }

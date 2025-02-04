@@ -21,9 +21,7 @@ use crate::CountUnique;
 /// each line before checking if it is unique or not. Note that this also affects the output that
 /// will be seen from functions that enumerate internal state, such as
 /// [`EmitLines::for_each_line`](crate::EmitLines::for_each_line).
-pub struct InexactHashingLineCounter<M>
-where
-{
+pub struct InexactHashingLineCounter<M> {
     map: HashTable<u64>,
     random_state: RandomState,
     string_buffer: Vec<u8>,
@@ -104,7 +102,9 @@ impl<M> InexactHashingLineCounter<M> {
 impl CountUnique for InexactHashingLineCounter<()> {
     fn count_line(&mut self, line: &[u8]) {
         let hash = self.random_state.hash_one(line);
-        let entry = self.map.entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
+        let entry = self
+            .map
+            .entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
         entry.or_insert_with(|| {
             self.count += 1;
             hash
@@ -120,7 +120,6 @@ impl CountUnique for InexactHashingLineCounter<()> {
     }
 }
 
-
 impl<M> CountUnique for InexactHashingLineCounter<M>
 where
     M: for<'a> FnMut(&'a [u8], &'a mut Vec<u8>) -> &'a [u8],
@@ -128,7 +127,9 @@ where
     fn count_line(&mut self, line: &[u8]) {
         let line = (self.line_mapper)(line, &mut self.string_buffer);
         let hash = self.random_state.hash_one(line);
-        let entry = self.map.entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
+        let entry = self
+            .map
+            .entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
         entry.or_insert_with(|| {
             self.count += 1;
             hash

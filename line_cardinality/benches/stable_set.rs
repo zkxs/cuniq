@@ -34,11 +34,7 @@ impl CountUnique for Processor {
     fn count_line(&mut self, line: &[u8]) {
         // potentially unnecessary copy
         let line = line.to_vec();
-        self.count += if self.set.insert(line) {
-            1
-        } else {
-            0
-        };
+        self.count += if self.set.insert(line) { 1 } else { 0 };
     }
 
     fn count(&self) -> usize {

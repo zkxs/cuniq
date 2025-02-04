@@ -20,7 +20,9 @@ use cfg_if::cfg_if;
 pub use count_unique_impl::file_io::memmap::CountUniqueFromMemmapFile;
 #[cfg(feature = "file")]
 pub use count_unique_impl::file_io::read::CountUniqueFromReadFile;
-pub use count_unique_impl::hashing::{HashingLineCounter, HashingLineCounterIntoIter, HashingLineCounterIter};
+pub use count_unique_impl::hashing::{
+    HashingLineCounter, HashingLineCounterIntoIter, HashingLineCounterIter,
+};
 #[cfg(feature = "hash-only")]
 pub use count_unique_impl::hashing_inexact::InexactHashingLineCounter;
 pub use count_unique_impl::hyperloglog::HyperLogLog;
@@ -126,10 +128,12 @@ pub trait CountUnique: Sized {
     /// assert_eq!(line_counter.count(), 0);
     /// ```
     fn count_unique_in_read<T: BufRead>(&mut self, mut reader: T) -> Result {
-        reader.for_byte_line(|line| {
-            self.count_line(line);
-            Ok(true)
-        }).map_err(|e| Error::io_static("failed to read from buffer", e))
+        reader
+            .for_byte_line(|line| {
+                self.count_line(line);
+                Ok(true)
+            })
+            .map_err(|e| Error::io_static("failed to read from buffer", e))
     }
 
     /// Count unique lines in newline-delimited bytes.

@@ -10,17 +10,24 @@ use ahash::RandomState;
 use bstr::ByteSlice;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
-use line_cardinality::{CountUnique, CountUniqueFromMemmapFile, CountUniqueFromReadFile, LineCounter};
+use line_cardinality::{
+    CountUnique, CountUniqueFromMemmapFile, CountUniqueFromReadFile, LineCounter,
+};
 
 // require certain features for this benchmark
-#[cfg(not(all(feature = "ahash", feature = "memmap", feature = "memchr", feature = "file")))]
+#[cfg(not(all(
+    feature = "ahash",
+    feature = "memmap",
+    feature = "memchr",
+    feature = "file"
+)))]
 compile_error!("missing required features");
 
 criterion_group!(benches, bench_small, bench_large, bench_tweaks);
 criterion_main!(benches);
 
-mod hashtable_no_fn;
 mod hashmap_no_fn;
+mod hashtable_no_fn;
 mod stable_map;
 mod stable_set;
 mod string;
@@ -45,10 +52,7 @@ struct TestFile {
 
 impl TestFile {
     const fn new(filename: &'static str, expected: usize) -> Self {
-        Self {
-            filename,
-            expected,
-        }
+        Self { filename, expected }
     }
 
     fn relative_path(&self) -> PathBuf {
@@ -80,19 +84,27 @@ fn bench_small(c: &mut Criterion) {
     let mut group = c.benchmark_group("tweaks.small");
 
     group.bench_function("read", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_SMALL.open(), |files| {
-            let mut processor = LineCounter::default();
-            processor.count_unique_in_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_SMALL.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_SMALL.open(),
+            |files| {
+                let mut processor = LineCounter::default();
+                processor.count_unique_in_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_SMALL.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     group.bench_function("memmap", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_SMALL.open(), |files| {
-            let mut processor = LineCounter::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_SMALL.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_SMALL.open(),
+            |files| {
+                let mut processor = LineCounter::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_SMALL.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 }
 
@@ -102,19 +114,27 @@ fn bench_large(c: &mut Criterion) {
     let mut group = c.benchmark_group("tweaks.large");
 
     group.bench_function("read", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_LARGE.open(), |files| {
-            let mut processor = LineCounter::default();
-            processor.count_unique_in_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_LARGE.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_LARGE.open(),
+            |files| {
+                let mut processor = LineCounter::default();
+                processor.count_unique_in_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_LARGE.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     group.bench_function("memmap", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_LARGE.open(), |files| {
-            let mut processor = LineCounter::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_LARGE.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_LARGE.open(),
+            |files| {
+                let mut processor = LineCounter::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_LARGE.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 }
 
@@ -124,87 +144,123 @@ fn bench_tweaks(c: &mut Criterion) {
 
     // uses a map with () values
     group.bench_function("baseline", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = LineCounter::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = LineCounter::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // same as baseline, but there's no FnMut floating around AND it uses deprecated raw_entry_mut
     group.bench_function("no-fn-map", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = hashmap_no_fn::Processor::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = hashmap_no_fn::Processor::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // same as baseline, but there's no FnMut floating around
     group.bench_function("no-fn", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = hashtable_no_fn::Processor::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = hashtable_no_fn::Processor::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // use BufRead instead of Mmap
     group.bench_function("read", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = LineCounter::default();
-            processor.count_unique_in_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = LineCounter::default();
+                processor.count_unique_in_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // set impl, but doesn't use unstable set APIs
     group.bench_function("stable_set", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = stable_set::Processor::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = stable_set::Processor::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // set impl, but does use unstable set APIs
     group.bench_function("unstable_set", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = unstable_set::Processor::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = unstable_set::Processor::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // map<()> impl, but doesn't use unstable set APIs
     group.bench_function("stable_map", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = stable_map::Processor::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = stable_map::Processor::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // uses str instead of bstr
     group.bench_function("str", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = string::Processor::default();
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = string::Processor::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     // test lowercase performance
     group.bench_function("baseline.lower", |bencher| {
-        bencher.iter_batched(|| TEST_FILE_ENGLISH_WORDS.open(), |files| {
-            let mut processor = LineCounter::with_line_mapper(|line, buffer| {
-                buffer.clear();
-                line.to_lowercase_into(buffer);
-                buffer
-            });
-            processor.count_unique_in_memmap_files(&files).unwrap();
-            assert_eq!(processor.count(), ENGLISH_WORDS_LOWERCASE_COUNT);
-        }, FILE_HANDLE_BATCH_SIZE);
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = LineCounter::with_line_mapper(|line, buffer| {
+                    buffer.clear();
+                    line.to_lowercase_into(buffer);
+                    buffer
+                });
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), ENGLISH_WORDS_LOWERCASE_COUNT);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
     });
 
     group.finish();

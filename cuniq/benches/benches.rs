@@ -17,7 +17,11 @@ compile_error!("missing required features");
 #[cfg(feature = "compile-time-rng")]
 compile_error!("compile-time-rng feature should be disabled for benchmarking");
 
-criterion_group!(benches, bench_cuniq_count_vs_shell, bench_cuniq_report_vs_shell);
+criterion_group!(
+    benches,
+    bench_cuniq_count_vs_shell,
+    bench_cuniq_report_vs_shell
+);
 criterion_main!(benches);
 
 /// primary test condition for comparing high cardinality
@@ -51,7 +55,12 @@ struct TestFile {
 }
 
 impl TestFile {
-    const fn new(filename: &'static str, description: &'static str, expected: usize, sample_size: usize) -> Self {
+    const fn new(
+        filename: &'static str,
+        description: &'static str,
+        expected: usize,
+        sample_size: usize,
+    ) -> Self {
         Self {
             filename,
             description,

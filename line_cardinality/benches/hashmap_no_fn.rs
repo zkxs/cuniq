@@ -32,12 +32,10 @@ impl Default for Processor {
 impl CountUnique for Processor {
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
-        self.map.raw_entry_mut()
-            .from_key(line)
-            .or_insert_with(|| {
-                self.count += 1;
-                (line.to_vec(), ())
-            });
+        self.map.raw_entry_mut().from_key(line).or_insert_with(|| {
+            self.count += 1;
+            (line.to_vec(), ())
+        });
     }
 
     fn count(&self) -> usize {

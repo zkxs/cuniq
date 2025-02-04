@@ -33,12 +33,10 @@ impl Default for Processor {
 impl CountUnique for Processor {
     fn count_line(&mut self, line: &[u8]) {
         let line = line.to_str().unwrap();
-        self.map.raw_entry_mut()
-            .from_key(line)
-            .or_insert_with(|| {
-                self.count += 1;
-                (line.to_string(), ())
-            });
+        self.map.raw_entry_mut().from_key(line).or_insert_with(|| {
+            self.count += 1;
+            (line.to_string(), ())
+        });
     }
 
     fn count(&self) -> usize {

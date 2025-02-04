@@ -11,13 +11,13 @@ cfg_if! {
     }
 }
 
-pub(crate) mod increment;
 #[cfg(feature = "file")]
 pub(crate) mod file_io;
 pub(crate) mod hashing;
 #[cfg(feature = "hash-only")]
 pub(crate) mod hashing_inexact;
 pub(crate) mod hyperloglog;
+pub(crate) mod increment;
 pub(crate) mod result;
 
 /// Handle getting a hasher for various hasher and RNG feature flag settings.

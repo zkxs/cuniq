@@ -30,15 +30,18 @@ where
     }
 
     fn count_unique_in_memmap_file(&mut self, file: &File) -> Result {
-        let mem_map = unsafe { Mmap::map(file) }
-            .map_err(|e| Error::io_static("failed to memmap file", e))?;
+        let mem_map =
+            unsafe { Mmap::map(file) }.map_err(|e| Error::io_static("failed to memmap file", e))?;
 
         //TODO: we need to *not* Advice::Sequential if we ever get a parallel counting implementation
-        #[cfg(unix)] {
+        #[cfg(unix)]
+        {
             use memmap2::Advice;
-            mem_map.advise(Advice::WillNeed)
+            mem_map
+                .advise(Advice::WillNeed)
                 .map_err(|e| Error::io_static("failed to set memmap file to WillNeed mode", e))?;
-            mem_map.advise(Advice::Sequential)
+            mem_map
+                .advise(Advice::Sequential)
                 .map_err(|e| Error::io_static("failed to set memmap file to Sequential mode", e))?;
         }
 

@@ -30,10 +30,14 @@ impl CountUnique for Processor {
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
         let hash = self.random_state.hash_one(line);
-        let entry = self.map.entry(hash, |entry| line == entry.as_slice(), |entry| {
-            let slice = entry.as_slice();
-            self.random_state.hash_one(slice)
-        });
+        let entry = self.map.entry(
+            hash,
+            |entry| line == entry.as_slice(),
+            |entry| {
+                let slice = entry.as_slice();
+                self.random_state.hash_one(slice)
+            },
+        );
         entry.or_insert_with(|| {
             self.count += 1;
             line.to_vec()

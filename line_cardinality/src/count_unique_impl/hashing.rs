@@ -106,10 +106,14 @@ impl CountUnique for HashingLineCounter<(), ()> {
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
         let hash = self.random_state.hash_one(line);
-        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
-            let slice = entry.line.as_slice();
-            self.random_state.hash_one(slice)
-        });
+        let entry = self.map.entry(
+            hash,
+            |entry| line == entry.line.as_slice(),
+            |entry| {
+                let slice = entry.line.as_slice();
+                self.random_state.hash_one(slice)
+            },
+        );
         entry.or_insert_with(|| {
             self.count += 1;
             Entry {
@@ -137,10 +141,14 @@ where
     fn count_line(&mut self, line: &[u8]) {
         let line = (self.line_mapper)(line, &mut self.string_buffer);
         let hash = self.random_state.hash_one(line);
-        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
-            let slice = entry.line.as_slice();
-            self.random_state.hash_one(slice)
-        });
+        let entry = self.map.entry(
+            hash,
+            |entry| line == entry.line.as_slice(),
+            |entry| {
+                let slice = entry.line.as_slice();
+                self.random_state.hash_one(slice)
+            },
+        );
         entry.or_insert_with(|| {
             self.count += 1;
             Entry {
@@ -166,10 +174,14 @@ where
     #[inline(always)]
     fn count_line(&mut self, line: &[u8]) {
         let hash = self.random_state.hash_one(line);
-        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
-            let slice = entry.line.as_slice();
-            self.random_state.hash_one(slice)
-        });
+        let entry = self.map.entry(
+            hash,
+            |entry| line == entry.line.as_slice(),
+            |entry| {
+                let slice = entry.line.as_slice();
+                self.random_state.hash_one(slice)
+            },
+        );
         entry
             .and_modify(|entry| entry.counter.increment())
             .or_insert_with(|| {
@@ -178,7 +190,7 @@ where
                     line: line.to_vec(),
                     counter: C::new(),
                 }
-        });
+            });
     }
 
     fn count(&self) -> usize {
@@ -200,10 +212,14 @@ where
     fn count_line(&mut self, line: &[u8]) {
         let line = (self.line_mapper)(line, &mut self.string_buffer);
         let hash = self.random_state.hash_one(line);
-        let entry = self.map.entry(hash, |entry| line == entry.line.as_slice(), |entry| {
-            let slice = entry.line.as_slice();
-            self.random_state.hash_one(slice)
-        });
+        let entry = self.map.entry(
+            hash,
+            |entry| line == entry.line.as_slice(),
+            |entry| {
+                let slice = entry.line.as_slice();
+                self.random_state.hash_one(slice)
+            },
+        );
         entry
             .and_modify(|entry| entry.counter.increment())
             .or_insert_with(|| {
@@ -232,16 +248,14 @@ where
     where
         F: FnMut(&[u8]),
     {
-
-        self.map.iter()
+        self.map
+            .iter()
             .map(|entry| entry.line.as_slice())
             .for_each(f);
     }
 
     fn into_vec(self) -> Vec<Vec<u8>> {
-        self.map.into_iter()
-            .map(|entry| entry.line)
-            .collect()
+        self.map.into_iter().map(|entry| entry.line).collect()
     }
 }
 
@@ -250,12 +264,14 @@ where
     C: Increment,
 {
     fn for_each_report_entry<F: FnMut(&[u8], C)>(&self, mut f: F) {
-        self.map.iter()
+        self.map
+            .iter()
             .for_each(|entry| f(entry.line.as_slice(), entry.counter));
     }
 
     fn to_report_vec(self) -> Vec<(Vec<u8>, C)> {
-        self.map.into_iter()
+        self.map
+            .into_iter()
             .map(|entry| (entry.line, entry.counter))
             .collect()
     }
@@ -268,11 +284,15 @@ where
     }
 
     fn iter(&self) -> HashingLineCounterIter<C> {
-        HashingLineCounterIter { inner: self.map.iter() }
+        HashingLineCounterIter {
+            inner: self.map.iter(),
+        }
     }
 
     fn into_iter(self) -> HashingLineCounterIntoIter<C> {
-        HashingLineCounterIntoIter { inner: self.map.into_iter() }
+        HashingLineCounterIntoIter {
+            inner: self.map.into_iter(),
+        }
     }
 }
 
@@ -284,7 +304,9 @@ where
     type IntoIter = HashingLineCounterIter<'a, C>;
 
     fn into_iter(self) -> Self::IntoIter {
-        HashingLineCounterIter { inner: self.map.iter() }
+        HashingLineCounterIter {
+            inner: self.map.iter(),
+        }
     }
 }
 
@@ -304,7 +326,9 @@ where
     type Item = (&'a [u8], &'a C);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|entry| (entry.line.as_slice(), &entry.counter))
+        self.inner
+            .next()
+            .map(|entry| (entry.line.as_slice(), &entry.counter))
     }
 }
 
