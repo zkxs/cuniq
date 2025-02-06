@@ -28,6 +28,7 @@ criterion_main!(benches);
 
 mod hashmap_no_fn;
 mod hashtable_no_fn;
+mod hashtable_no_fn_no_cap;
 mod stable_map;
 mod stable_set;
 mod string;
@@ -174,6 +175,19 @@ fn bench_tweaks(c: &mut Criterion) {
             || TEST_FILE_ENGLISH_WORDS.open(),
             |files| {
                 let mut processor = hashtable_no_fn::Processor::default();
+                processor.count_unique_in_memmap_files(&files).unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
+    });
+
+    // same as baseline, but uses Box<[u8]> instead of Vec<u8>
+    group.bench_function("no-cap", |bencher| {
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |files| {
+                let mut processor = hashtable_no_fn_no_cap::Processor::default();
                 processor.count_unique_in_memmap_files(&files).unwrap();
                 assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
             },
