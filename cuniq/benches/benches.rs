@@ -141,6 +141,22 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         });
 
         // cuniq input.txt
+        group.bench_function("cuniq-1.0.3", |bencher| {
+            bencher.iter(|| {
+                let cuniq = Command::new(r"C:\Users\runtime\.cargo\bin\cuniq-1.0.3.exe")
+                    .arg("--no-stdin")
+                    .arg("--memmap")
+                    .arg(path_buf.as_os_str())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                let output = cuniq.wait_with_output().unwrap();
+                let result = std::str::from_utf8(&output.stdout).unwrap();
+                assert_eq!(result, &expected);
+            });
+        });
+
+        // cuniq input.txt
         group.bench_function("cuniq", |bencher| {
             bencher.iter(|| {
                 let cuniq = Command::new(cuniq_path)
@@ -298,6 +314,23 @@ fn bench_cuniq_report_vs_shell(c: &mut Criterion) {
                 let output = uniq.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
                 sort.wait().unwrap();
+                black_box(result);
+            });
+        });
+
+        // cuniq -c input.txt
+        group.bench_function("cuniq-1.0.3", |bencher| {
+            bencher.iter(|| {
+                let cuniq = Command::new(r"C:\Users\runtime\.cargo\bin\cuniq-1.0.3.exe")
+                    .arg("--no-stdin")
+                    .arg("--memmap")
+                    .arg("--report")
+                    .arg(path_buf.as_os_str())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                let output = cuniq.wait_with_output().unwrap();
+                let result = std::str::from_utf8(&output.stdout).unwrap();
                 black_box(result);
             });
         });
