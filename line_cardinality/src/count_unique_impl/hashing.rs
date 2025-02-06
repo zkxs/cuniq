@@ -1,17 +1,17 @@
 // This file is part of line_cardinality. Copyright © 2025 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
+use hashbrown::HashTable;
 #[cfg(not(feature = "ahash"))]
 use std::hash::BuildHasher;
-
-use hashbrown::HashTable;
+use std::ops::Deref;
 
 use crate::{CountUnique, EmitLines, Increment, ReportUnique};
 
 use super::{init_hasher_state, RandomState};
 
 struct Entry<T> {
-    line: Vec<u8>,
+    line: Box<[u8]>,
     counter: T,
 }
 
@@ -108,16 +108,16 @@ impl CountUnique for HashingLineCounter<(), ()> {
         let hash = self.random_state.hash_one(line);
         let entry = self.map.entry(
             hash,
-            |entry| line == entry.line.as_slice(),
+            |entry| line == entry.line.deref(),
             |entry| {
-                let slice = entry.line.as_slice();
+                let slice: &[u8] = &entry.line;
                 self.random_state.hash_one(slice)
             },
         );
         entry.or_insert_with(|| {
             self.count += 1;
             Entry {
-                line: line.to_vec(),
+                line: line.to_vec().into_boxed_slice(),
                 counter: (),
             }
         });
@@ -143,16 +143,16 @@ where
         let hash = self.random_state.hash_one(line);
         let entry = self.map.entry(
             hash,
-            |entry| line == entry.line.as_slice(),
+            |entry| line == entry.line.deref(),
             |entry| {
-                let slice = entry.line.as_slice();
+                let slice: &[u8] = &entry.line;
                 self.random_state.hash_one(slice)
             },
         );
         entry.or_insert_with(|| {
             self.count += 1;
             Entry {
-                line: line.to_vec(),
+                line: line.to_vec().into_boxed_slice(),
                 counter: (),
             }
         });
@@ -176,9 +176,9 @@ where
         let hash = self.random_state.hash_one(line);
         let entry = self.map.entry(
             hash,
-            |entry| line == entry.line.as_slice(),
+            |entry| line == entry.line.deref(),
             |entry| {
-                let slice = entry.line.as_slice();
+                let slice: &[u8] = &entry.line;
                 self.random_state.hash_one(slice)
             },
         );
@@ -187,7 +187,7 @@ where
             .or_insert_with(|| {
                 self.count += 1;
                 Entry {
-                    line: line.to_vec(),
+                    line: line.to_vec().into_boxed_slice(),
                     counter: C::new(),
                 }
             });
@@ -214,9 +214,9 @@ where
         let hash = self.random_state.hash_one(line);
         let entry = self.map.entry(
             hash,
-            |entry| line == entry.line.as_slice(),
+            |entry| line == entry.line.deref(),
             |entry| {
-                let slice = entry.line.as_slice();
+                let slice: &[u8] = &entry.line;
                 self.random_state.hash_one(slice)
             },
         );
@@ -225,7 +225,7 @@ where
             .or_insert_with(|| {
                 self.count += 1;
                 Entry {
-                    line: line.to_vec(),
+                    line: line.to_vec().into_boxed_slice(),
                     counter: C::new(),
                 }
             });
@@ -248,14 +248,15 @@ where
     where
         F: FnMut(&[u8]),
     {
-        self.map
-            .iter()
-            .map(|entry| entry.line.as_slice())
-            .for_each(f);
+        self.map.iter().map(|entry| entry.line.deref()).for_each(f);
     }
 
     fn into_vec(self) -> Vec<Vec<u8>> {
-        self.map.into_iter().map(|entry| entry.line).collect()
+        self.map
+            .into_iter()
+            .map(|entry| entry.line)
+            .map(|line| line.into_vec())
+            .collect()
     }
 }
 
@@ -266,20 +267,20 @@ where
     fn for_each_report_entry<F: FnMut(&[u8], C)>(&self, mut f: F) {
         self.map
             .iter()
-            .for_each(|entry| f(entry.line.as_slice(), entry.counter));
+            .for_each(|entry| f(&entry.line, entry.counter));
     }
 
     fn to_report_vec(self) -> Vec<(Vec<u8>, C)> {
         self.map
             .into_iter()
-            .map(|entry| (entry.line, entry.counter))
+            .map(|entry| (entry.line.into_vec(), entry.counter))
             .collect()
     }
 
     fn get(&self, line: &[u8]) -> Option<C> {
         let hash = self.random_state.hash_one(line);
         self.map
-            .find(hash, |entry| line == entry.line.as_slice())
+            .find(hash, |entry| line == entry.line.deref())
             .map(|entry| entry.counter)
     }
 
@@ -328,7 +329,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
-            .map(|entry| (entry.line.as_slice(), &entry.counter))
+            .map(|entry| (entry.line.deref(), &entry.counter))
     }
 }
 
@@ -348,6 +349,8 @@ where
     type Item = (Vec<u8>, C);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|entry| (entry.line, entry.counter))
+        self.inner
+            .next()
+            .map(|entry| (entry.line.into_vec(), entry.counter))
     }
 }
