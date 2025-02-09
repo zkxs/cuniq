@@ -12,6 +12,7 @@ use super::{init_hasher_state, RandomState};
 type Hash = u64;
 
 const DEFAULT_SIZE: usize = 65536;
+const MAX_SIZE: usize = usize::MAX ^ 0xFF; // leave 8 bits for the actual values
 static DEFAULT_SIZE_ERROR_MESSAGE: &str = "expected DEFAULT_SIZE to be a valid size";
 
 /// Estimates the unique count and holds necessary state.
@@ -47,6 +48,14 @@ fn check_size(size: usize) -> Result<SizeInfo, Error> {
     } else if size < 16 {
         Err(Error::hyper_log_log(
             format!("HyperLogLog size must be at least 16, but was {}", size),
+            size,
+        ))
+    } else if size > MAX_SIZE {
+        Err(Error::hyper_log_log(
+            format!(
+                "HyperLogLog size must be at most {}, but was {}",
+                MAX_SIZE, size
+            ),
             size,
         ))
     } else {
@@ -199,7 +208,10 @@ impl CountUnique for HyperLogLog<()> {
         // Since we're counting bits in a u64 this is guaranteed to fit in a u8.
         let zero_count = (self.right_bits(hash).leading_zeros() + 1 - self.bits) as u8;
 
-        let counter = &mut self.counters[index];
+        // SAFETY: `index` must be in bounds for `self.counters`. It should be, because we ran it
+        // through the whole `check_size` function earlier.
+        let counter = unsafe { self.counters.get_unchecked_mut(index) };
+
         *counter = u8::max(*counter, zero_count);
     }
 
@@ -226,7 +238,10 @@ where
         // Since we're counting bits in a u64 this is guaranteed to fit in a u8.
         let zero_count = (self.right_bits(hash).leading_zeros() + 1 - self.bits) as u8;
 
-        let counter = &mut self.counters[index];
+        // SAFETY: `index` must be in bounds for `self.counters`. It should be, because we ran it
+        // through the whole `check_size` function earlier.
+        let counter = unsafe { self.counters.get_unchecked_mut(index) };
+
         *counter = u8::max(*counter, zero_count);
     }
 
