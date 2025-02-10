@@ -1,6 +1,6 @@
 [package]
 name = "line_cardinality"
-version = "2.0.1"
+version = "2.1.0"
 description = "High performance line cardinality counts and estimates"
 authors.workspace = true
 edition.workspace = true

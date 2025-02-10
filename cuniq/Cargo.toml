@@ -1,6 +1,6 @@
 [package]
 name = "cuniq"
-version = "1.0.4"
+version = "1.1.0"
 description = "Count unique lines"
 authors.workspace = true
 edition.workspace = true
@@ -27,7 +27,7 @@ debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output s
 [features]
 default = ["memmap", "compile-time-rng"]
 # Ability to read files via memory-mapping
-memmap = ["line_cardinality/memmap"]
+memmap = ["line_cardinality/memmap", "num_cpus"]
 compile-time-rng = ["line_cardinality/compile-time-rng"]
 # Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.
 bench = ["memmap"]
@@ -37,10 +37,10 @@ clap = { version = "4", features = ["derive", "wrap_help"] }
 cfg-if.workspace = true
 line_cardinality = { path = "../line_cardinality", version = "2", default-features = false, features = ["ahash", "file", "hash-only"] }
 bstr.workspace = true
+num_cpus = { version = "1", optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
-memmap2.workspace = true
 
 [[bench]]
 name = "benches"

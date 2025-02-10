@@ -17,7 +17,9 @@ use bstr::io::BufReadExt;
 use cfg_if::cfg_if;
 
 #[cfg(all(feature = "file", feature = "memmap"))]
-pub use count_unique_impl::file_io::memmap::CountUniqueFromMemmapFile;
+pub use count_unique_impl::file_io::memmap::{
+    CountUniqueFromMemmapFile, ParallelCountUniqueFromMemmapFile,
+};
 #[cfg(feature = "file")]
 pub use count_unique_impl::file_io::read::CountUniqueFromReadFile;
 pub use count_unique_impl::hashing::{
@@ -163,6 +165,12 @@ pub trait CountUnique: Sized {
 
     /// Resets internal state of this [`CountUnique`] for reuse
     fn reset(&mut self);
+}
+
+/// A [`CountUnique`] that can be merged with another `CountUnique` of the same type. Notably, this
+/// allows simple parallel implementations as the states can be merged at the end of the counting phase.
+pub trait Merge: CountUnique + Clone {
+    fn merge(&mut self, other: &Self);
 }
 
 /// Functionality to emit lines from a [`CountUnique`]

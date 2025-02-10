@@ -8,10 +8,15 @@ use std::process::ExitCode;
 use bstr::ByteSlice;
 use clap::Parser;
 
+use cfg_if::cfg_if;
+
 use line_cardinality::{
     CountUnique, Error, ErrorCause, HashingLineCounter, HyperLogLog, InexactHashingLineCounter,
     LineCounter, ReportUnique,
 };
+
+#[cfg(feature = "memmap")]
+use line_cardinality::Merge;
 
 use crate::cli_args::{CliArgs, Mode};
 
@@ -141,12 +146,43 @@ fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), E
             } else {
                 HyperLogLog::with_line_mapper(preprocess_line::<TRIM, LOWERCASE>)
             };
-            process_input(&args, &mut processor)?;
+
+            cfg_if! {
+                if #[cfg(feature = "memmap")] {
+                    let threads = args.threads.unwrap_or_else(num_cpus::get);
+                    if threads > 1 {
+                        parallel_process_input(&args, &mut processor, threads)?;
+                    } else {
+                        process_input(&args, &mut processor)?;
+                    }
+                } else {
+                    process_input(&args, &mut processor)?;
+                }
+            }
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
         }
     }
     Ok(())
+}
+
+#[cfg(feature = "memmap")]
+fn parallel_process_input<T>(args: &CliArgs, processor: &mut T, threads: usize) -> Result<(), Error>
+where
+    T: line_cardinality::CountUniqueFromMemmapFile + Merge + Send + Sync + 'static,
+{
+    // pre-open all files so that we can display any errors and abort *before* doing work
+    let mut files: Vec<File> = Vec::with_capacity(args.files.len());
+    for path in &args.files {
+        let file = File::open(path)
+            .map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
+        files.push(file);
+    }
+
+    process_stdin(args, processor)?;
+
+    use line_cardinality::ParallelCountUniqueFromMemmapFile;
+    processor.parallel_count_unique_in_memmap_files(&files, threads)
 }
 
 fn process_input<T>(args: &CliArgs, processor: &mut T) -> Result<(), Error>
@@ -163,7 +199,6 @@ where
 
     process_stdin(args, processor)?;
 
-    use cfg_if::cfg_if;
     cfg_if! {
         if #[cfg(feature = "memmap")] {
             if args.no_memmap {

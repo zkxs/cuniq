@@ -1,11 +1,10 @@
 // This file is part of line_cardinality. Copyright © 2024 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
+use crate::{CountUnique, Error, Merge};
 use std::f64::consts::E;
 #[cfg(not(feature = "ahash"))]
 use std::hash::BuildHasher;
-
-use crate::{CountUnique, Error};
 
 use super::{init_hasher_state, RandomState};
 
@@ -25,7 +24,9 @@ static DEFAULT_SIZE_ERROR_MESSAGE: &str = "expected DEFAULT_SIZE to be a valid s
 /// line before checking if it is unique or not. Note that this also affects the output that will be
 /// seen from functions that enumerate internal state, such as
 /// [`EmitLines::for_each_line`](crate::EmitLines::for_each_line).
+#[derive(Clone)]
 pub struct HyperLogLog<M> {
+    /// hasher instance
     random_state: RandomState,
     size: usize,
     /// number of bits in the left part == log2(size)
@@ -34,8 +35,11 @@ pub struct HyperLogLog<M> {
     shift_bits: u32,
     /// mask used to isolate the right side
     mask: Hash,
+    /// HyperLogLog counter array
     counters: Vec<u8>,
+    /// Growable temporary space used for reading strings into. This save a LOT of allocations.
     string_buffer: Vec<u8>,
+    /// Function used to map lines before processing
     line_mapper: M,
 }
 
@@ -251,6 +255,21 @@ where
 
     fn reset(&mut self) {
         HyperLogLog::reset(self);
+    }
+}
+
+impl<M> Merge for HyperLogLog<M>
+where
+    M: for<'a> FnMut(&'a [u8], &'a mut Vec<u8>) -> &'a [u8] + Clone,
+{
+    fn merge(&mut self, other: &Self) {
+        assert_eq!(self.size, other.size);
+        for index in 0..self.size {
+            let self_counter = unsafe { self.counters.get_unchecked_mut(index) };
+            let other_counter = unsafe { other.counters.get_unchecked(index) };
+            // trying to tell the compiler it can do this unconditionally if it so pleases
+            *self_counter = (*self_counter).max(*other_counter);
+        }
     }
 }
 
