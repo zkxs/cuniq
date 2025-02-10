@@ -119,13 +119,17 @@ impl Iterator for ChunkIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.chunk_start_ptr >= self.end_ptr {
-            // edge case: we already ran out of data so we will not create this thread
+            // edge case: we have ran out of data and are ready to stop iterating
             None
         } else if self.chunk_end_ptr >= self.end_ptr {
             // edge case: end ptr has passed end of mem_map
             // just use real end and skip the newline search shit
             // equivalent to  `chunk = &mem_map[chunk_start_index_inclusive..]`
             let chunk = unsafe { Chunk::from_ptr_range(self.chunk_start_ptr, self.end_ptr) };
+
+            // update start ptr so that the next iteration returns None
+            self.chunk_start_ptr = self.end_ptr;
+            
             Some(chunk)
         } else {
             // equivalent to `search_range = &mem_map[chunk_end_index_exclusive..]`
@@ -156,6 +160,10 @@ impl Iterator for ChunkIterator {
                 // equivalent to  `chunk = &mem_map[chunk_start_index_inclusive..]`
                 let chunk =
                     unsafe { Chunk::from_ptr_range(self.chunk_start_ptr, self.chunk_end_ptr) };
+                
+                // update start ptr so that the next iteration returns None
+                self.chunk_start_ptr = self.end_ptr;
+                
                 Some(chunk)
             }
         }
