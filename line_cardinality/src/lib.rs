@@ -20,7 +20,8 @@ use cfg_if::cfg_if;
 
 #[cfg(all(feature = "file", feature = "memmap"))]
 pub use count_unique_impl::file_io::memmap::{
-    CountUniqueFromMemmapFile, ParallelCountUniqueFromMemmapFile,
+    CountUniqueFromMemmapFile, ParallelChunkedCountUniqueFromMemmapFile,
+    ParallelCountUniqueFromMemmapFile,
 };
 #[cfg(feature = "file")]
 pub use count_unique_impl::file_io::read::CountUniqueFromReadFile;
