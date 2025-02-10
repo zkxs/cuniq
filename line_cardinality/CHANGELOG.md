@@ -2,6 +2,14 @@
 
 This project follows [semantic versioning](https://semver.org/).
 
+# 2.1.0 - Unreleased
+
+## Added
+
+- New traits `ParallelCountUniqueFromMemmapFile` and `Merge`, which are used by the HyperLogLog implementation to enable
+  multi-threaded cardinality estimation.
+- `HyperLogLog` is now `Clone`.
+
 # 2.0.0 - 2024-09-15
 
 ## Added

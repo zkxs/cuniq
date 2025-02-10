@@ -6,7 +6,7 @@ instead.
 
 **The anti-pitch**: For small inputs you're fine using sort and uniq, as we're talking millisecond-savings by switching
 to cuniq. However, if you've been using `sort | uniq | wc -l` you should switch to `sort -u | wc -l`, as it's free
-performance gain without having to go outside standard POSIX commands.
+performance gain without having to go outside GNU coreutils.
 
 ## Performance
 
@@ -73,8 +73,8 @@ Arguments:
 
 Options:
   -c, --report
-          Instead of printing total unique lines, print a report showing occurrence count of each
-          line. This is only compatible with "exact" mode (the default)
+          Instead of printing total unique lines, print a report showing occurrence count of each line. This is only
+          compatible with "exact" mode (the default)
 
   -s, --sort
           Sort report output alphabetically by line. Has no effect unless used with `--report`
@@ -91,43 +91,39 @@ Options:
           [default: exact]
 
           Possible values:
-          - exact:      Uses a hash table to exactly count cardinality. The size of the hash table
-            is proportional to the cardinality of the input. You may use the `--size` flag to set
-            the initial capacity of the internal hash table. For very large inputs `--size` may help
-            reduce expensive hash table reallocations. Avoid setting `--size` for small datasets
-          - near-exact: Uses a hash table to exactly count cardinality, but does not store the
-            original line. This mode is faster than "exact" mode, but hash collision will result in
-            under-counting the cardinality by one. However, hash collisions for a 64-bit hash are
-            exceedingly unlikely. The size of the hash table is proportional to the cardinality of
-            the input. You may use the `--size` flag to set the initial capacity of the internal
-            hash table. For very large inputs `--size` may help reduce expensive hash table
-            reallocations. Avoid setting `--size` for small datasets. This mode is not compatible
-            with `--report`
-          - estimate:   Uses the HyperLogLog algorithm to estimate cardinality with fixed memory.
-            Use the `--size` flag to specify the number of 1-byte registers to use. More registers
-            will increase estimate accuracy. By default, 65536 is used. This mode is not compatible
-            with `--report`
+          - exact:      Uses a hash table to exactly count cardinality. The size of the hash table is proportional to
+            the cardinality of the input. You may use the `--size` flag to set the initial capacity of the internal hash
+            table. For very large inputs `--size` may help reduce expensive hash table reallocations. Avoid setting
+            `--size` for small datasets
+          - near-exact: Uses a hash table to exactly count cardinality, but does not store the original line. This mode
+            is faster than "exact" mode, but hash collision will result in under-counting the cardinality by one.
+            However, hash collisions for a 64-bit hash are exceedingly unlikely. The size of the hash table is
+            proportional to the cardinality of the input. You may use the `--size` flag to set the initial capacity of
+            the internal hash table. For very large inputs `--size` may help reduce expensive hash table reallocations.
+            Avoid setting `--size` for small datasets. This mode is not compatible with `--report`
+          - estimate:   Uses the HyperLogLog algorithm to estimate cardinality with fixed memory. Use the `--size` flag
+            to specify the number of 1-byte registers to use. More registers will increase estimate accuracy. By
+            default, 65536 is used. This mode is not compatible with `--report`. This is the only mode that supports
+            multi-threading with `--threads`
 
   -n, --size <SIZE>
-          Set the size used by the selected counting mode. See the `--mode` documentation for how
-          this affects each counting mode
+          Set the size used by the selected counting mode. See the `--mode` documentation for how this affects each
+          counting mode
 
       --threads <THREADS>
-          Set the number of threads used to perform the count. By default, the number of logical
-          cores is used. Not all counting modes support parallelism: see `--mode` for details
+          Set the number of threads used to perform the count. By default, the number of logical cores is used. Not all
+          counting modes support parallelism: currently only `--mode=estimate` is compatible
 
       --no-stdin
-          Disable checking stdin for input. May yield a small performance improvement when only
-          reading input from files
+          Disable checking stdin for input. May yield a small performance improvement when only reading input from files
 
       --memmap
-          Force reading files via memmap. This may yield improved performance for large files. If
-          the binary was built without memmap support, using this flag will result in an error
+          Force reading files via memmap. This may yield improved performance for large files. If the binary was built
+          without memmap support, using this flag will result in an error
 
       --no-memmap
-          Disable reading files via memmap, instead falling back to normal reads. By default, cuniq
-          will try to use memmap if it thinks it will be faster. Disabling memmap may yield improved
-          performance for small files
+          Disable reading files via memmap, instead falling back to normal reads. By default, cuniq will try to use
+          memmap if it thinks it will be faster. Disabling memmap may yield improved performance for small files
 
   -h, --help
           Print help (see a summary with '-h')

@@ -33,7 +33,6 @@ where
         let mem_map =
             unsafe { Mmap::map(file) }.map_err(|e| Error::io_static("failed to memmap file", e))?;
 
-        //TODO: we need to *not* Advice::Sequential if we ever get a parallel counting implementation
         #[cfg(unix)]
         {
             use memmap2::Advice;
@@ -64,7 +63,7 @@ where
     T: Merge + Send + Sync + 'static,
 {
     fn parallel_count_unique_in_memmap_files(&mut self, files: &[File], threads: usize) -> Result {
-        //TODO: this isn't great
+        //TODO: this isn't great: some kind of work stealing pool would be more suitable for a large number of files.
         for file in files {
             self.parallel_count_unique_in_memmap_file(file, threads)?;
         }

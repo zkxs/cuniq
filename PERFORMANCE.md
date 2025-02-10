@@ -16,12 +16,10 @@ dataset in main memory. You will instead need to use a statistical estimate such
 
 Various tweaks to cuniq were implemented and benchmarked. Tweaks that improved performance were retained:
 
-- [`HashMap::raw_entry_mut`](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.raw_entry_mut)
+- [HashTable](https://docs.rs/hashbrown/0.14.5/hashbrown/struct.HashTable.html)
   is used for deferring cloning keys until a new key is known to be required. This shows significant performance improvements
-  over unconditionally cloning every key, but unfortunately requires nightly Rust to compile (pending
-  [#56167](https://github.com/rust-lang/rust/issues/56167)). As a workaround, I just use the [HashMap implementation
-  provided by hashbrown](https://docs.rs/hashbrown/0.14.5/hashbrown/hash_map/struct.HashMap.html), as it's ahead of the
-  features available in std.
+  over unconditionally cloning every key. HashTable is also used to further reduce HashMap overhead in the mode
+  (`--mode=near-exact`) where only hashes are stored.
 - [memmap](https://crates.io/crates/memmap2) is used to reduce IO cost of reading large files. This slightly hurts
   performance for small files due to setup overhead, but has scaling performance improvements for larger and larger files.
   [memchr](https://crates.io/crates/memchr) is used for performant newline searching when using memory-mapped IO.
@@ -29,18 +27,13 @@ Various tweaks to cuniq were implemented and benchmarked. Tweaks that improved p
 - [bstr](https://crates.io/crates/bstr) is used to skip performing UTF-8 validation on input.
 - [ahash](https://crates.io/crates/ahash) is used to reduce cost of hashing, as we do not need the cryptographic
   security of the standard hash.
-- [const generics](https://doc.rust-lang.org/reference/items/generics.html#const-generics) were intentionally not used,
-  as they were unable to reliably improve performance in benchmarks.
-- HashMap with `()` values was found to have equal performance to a HashSet, so HashSet was dropped to slightly simplify
-  the implementation.
-- Large data structures (e.g. the HashMap) are intentionally leaked to have the OS perform cleanup instead of letting
+- Large data structures (e.g. the HashTable) are intentionally leaked to have the OS perform cleanup instead of letting
   Rust call destructors.
-- [HashTable](https://docs.rs/hashbrown/0.14.5/hashbrown/struct.HashTable.html) is used to further reduce HashMap
-  overhead in the mode (`--mode=near-exact`) where only hashes are stored.
 - [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog) is used in the statistical estimate mode (`--mode=estimate`).
   HyperLogLog tends to be extremely fast, as the bounded memory it uses is small enough to live *entirely* within CPU
   cache on modern CPUs meaning not only does it not have expensive allocations, but often it doesn't even need to read
   main memory.
+- Multithreading was implemented for HyperLogLog, which further improves performance on systems where IO is not the bottleneck.
 
 # Benchmarking
 
@@ -89,26 +82,30 @@ The test file is 32 GiB dump of slightly preprocessed Wikipedia text. The file h
 newline), of which 78,035,032 are unique (1.3% cardinality). Times were recorded using bash's `time` builtin. The best
 times for the "Count", "Report" and "Report (Sorted)" categories are bolded.
 
-| Command                                                                              | Version  | Real Time     | User Time  | Sys Time  | Operation        | Notes                                                       |
-| ------------------------------------------------------------------------------------ | -------- | ------------- | ---------- | --------- | ---------------- | ----------------------------------------------------------- |
-| `wc -l huge.txt`                                                                     | GNU 8.32 | 0m23.612s     | 0m8.625s   | 0m4.796s  | N/A              | a decent baseline for how quickly the file can be traversed |
-| `sort -u huge.txt \| wc -l`                                                          | GNU 8.32 | 13m29.613s    | 31m58.686s | 0m16.108s | Count            |                                                             |
-| `sort huge.txt \| uniq -c > /dev/null`                                               | GNU 8.32 | 28m13.754s    | 36m58.639s | 0m38.624s | Report (sorted)  |                                                             |
-| `cuniq huge.txt`                                                                     | 1.0.0    | 4m09.794s     | 0m0.000s   | 0m0.015s  | Count            |                                                             |
-| `cuniq --no-memmap huge.txt`                                                         | 1.0.0    | 3m20.319s     | 0m0.000s   | 0m0.016s  | Count            |                                                             |
-| `cuniq < huge.txt`                                                                   | 1.0.0    | 3m19.071s     | 0m0.000s   | 0m0.015s  | Count            |                                                             |
-| `cuniq -c huge.txt > /dev/null`                                                      | 1.0.0    | **4m36.895s** | 0m0.000s   | 0m0.030s  | Report           |                                                             |
-| `cuniq -cs huge.txt > /dev/null`                                                     | 1.0.0    | **5m05.738s** | 0m0.000s   | 0m0.000s  | Report (sorted)  |                                                             |
-| `cuniq --mode=near-exact huge.txt`                                                   | 1.0.0    | **2m3.940s**  | 0m0.000s   | 0m0.000s  | Count            | only stores hash                                            |
-| `cuniq --mode=estimate huge.txt`                                                     | 1.0.0    | 1m30.028s     | 0m0.000s   | 0m0.000s  | Count (estimate) | HyperLogLog estimate w/ 0.16% error                         |
-| `sortuniq < huge.txt \| wc -l`                                                       | 0.2.0    | 12m27.609s    | 0m3.859s   | 0m15.843s | Count            |                                                             |
-| `sortuniq -c < huge.txt > /dev/null`                                                 | 0.2.0    | 12m1.088s     | 0m0.000s   | 0m0.000s  | Report           |                                                             |
-| `runiq --filter=simple huge.txt \| wc -l`                                            | 2.0.0    | 11m59.739s    | 0m3.875s   | 0m17.421s | Count            |                                                             |
-| `runiq huge.txt \| wc -l`                                                            | 2.0.0    | 6m9.880s      | 0m46.984s  | 3m39.093s | Count            | only stores hash                                            |
-| `huniq < huge.txt \| wc -l`                                                          | 2.7.0    | 4m30.499s     | 0m31.500s  | 2m23.250s | Count            | only stores hash                                            |
-| `huniq -c < huge.txt > /dev/null`                                                    | 2.7.0    | 10m21.352s    | 0m0.000s   | 0m0.015s  | Report           |                                                             |
-| `huniq -cs < huge.txt > /dev/null`                                                   | 2.7.0    | 10m25.526s    | 0m0.000s   | 0m0.000s  | Report (sorted)  |                                                             |
-| `awk '{ a[$0]++ }; END { for (x in a) { print x ": " a[x] } }' huge.txt > /dev/null` | 5.0.0    | 15m47.790s    | 15m24.546s | 0m11.968s | Report           |                                                             |
+Tests were ran on an AMD Ryzen 7 7800X3D (16 threads) with 5200 MT/s memory and 6950 MB/s sequential read from disk. Host OS is Windows 11 24H2.
+
+| Command                                                                              | Version   |      Real Time | Operation        | Implementation Notes                 | Threads | Performance Notes                                                                                           |
+| ------------------------------------------------------------------------------------ | --------- | -------------: | ---------------- | ------------------------------------ | ------: | ----------------------------------------------------------------------------------------------------------- |
+| `wc -l huge.txt`                                                                     | GNU 8.32  |     0m 18.991s | N/A              | N/A                                  |       1 | Decent baseline for how quickly the file can be traversed.                                                  |
+| `sort -u huge.txt \| wc -l`                                                          | GNU 8.32  |    13m 26.379s | Count            | sorting                              |       8 | Loses to dedicated tooling due to sorting the entire input.                                                 |
+| `sort huge.txt \| uniq -c > /dev/null`                                               | GNU 8.32  |    27m 10.739s | Report (sorted)  | sorting                              |       1 | Very bad. Better to use `awk` for reports if you are constrained to GNU coreutils.                          |
+| `awk '{ a[$0]++ }; END { for (x in a) { print x ": " a[x] } }' huge.txt > /dev/null` | GNU 5.0.0 |    16m 43.238s | Report           | hashtable                            |       1 | Fastest report option in GNU coreutils, but unsurprisingly loses to dedicated tooling.                      |
+| `cuniq --memmap huge.txt`                                                            | 1.1.0     |     3m 16.722s | Count            | hashtable                            |       1 | Not sorting is cheaper than sorting, so this beats GNU sort easily.                                         |
+| `cuniq --no-memmap huge.txt`                                                         | 1.1.0     |     4m 04.366s | Count            | hashtable                            |       1 | `--no-memmap` is slower here, but it tends to be faster for small files.                                    |
+| `cuniq < huge.txt`                                                                   | 1.1.0     |     3m 49.026s | Count            | hashtable                            |       1 | stdin cannot not use memmap, so this is expected to be close to the above benchmark.                        |
+| `cuniq --memmap -c huge.txt > /dev/null`                                             | 1.1.0     | **3m 33.067s** | Report           | hashtable                            |       1 | Not sorting is cheaper than sorting, so this beats GNU sort easily.                                         |
+| `cuniq --memmap -cs huge.txt > /dev/null`                                            | 1.1.0     | **3m 56.435s** | Report (sorted)  | hashtable                            |       1 | Sorting after dedupe is cheaper than sorting before dedupe, so this beats GNU sort easily.                  |
+| `cuniq --memmap --mode=near-exact huge.txt`                                          | 1.1.0     | **2m 03.316s** | Count            | hashtable, but only stores hash      |       1 | Speedup is from not having to copy any strings.                                                             |
+| `cuniq --memmap --mode=estimate --threads=1 huge.txt`                                | 1.1.0     |     1m 26.148s | Count (estimate) | HyperLogLog estimate w/ 0.61% error  |       1 | Speedup is from constant-sized 64 KiB memory usage.                                                         |
+| `cuniq --memmap --mode=estimate huge.txt`                                            | 1.1.0     |     0m 08.964s | Count (estimate) | HyperLogLog estimate w/ 0.61% error  |      16 | Speedup is from maximizing CPU use while not being IO-bound due to very fast disk.                          |
+| `sortuniq < huge.txt \| wc -l`                                                       | 0.2.0     |    14m 28.887s | Count            | hashtable                            |       1 | Struggles to outperform even `sort -u` due to several missed optimizations.                                 |
+| `sortuniq -c < huge.txt > /dev/null`                                                 | 0.2.0     |    13m 09.038s | Report           | hashtable                            |       1 | Outperforms `awk`, but fails to outperform all other dedicated tooling due to several missed optimizations. |
+| `runiq --filter=simple huge.txt \| wc -l`                                            | 2.0.0     |    12m 30.652s | Count            | hashtable                            |       1 | Struggles to outperform even `sort -u` due to several missed optimizations.                                 |
+| `runiq --filter=quick huge.txt \| wc -l`                                             | 2.0.0     |     6m 39.118s | Count            | hashtable, but only stores hash      |       1 | Outperforms `sort -u`, but leaves performance on the table from missed optimizations.                       |
+| `runiq --filter=compact huge.txt \| wc -l`                                           | 2.0.0     |    13m 01.483s | Count (estimate) | Bloom filter estimate w/ 0.00% error |       1 | Below average time performance but above average memory performance with a remarkably low error rate.       |
+| `huniq < huge.txt \| wc -l`                                                          | 2.7.0     |     5m 09.133s | Count            | hashtable, but only stores hash      |       1 | Fairly competitive performance due to minimal missed optimizations.                                         |
+| `huniq -c < huge.txt > /dev/null`                                                    | 2.7.0     |    10m 37.392s | Report           | hashtable                            |       1 | Outperforms `awk`, but leaves performance on the table from missed optimizations.                           |
+| `huniq -cs < huge.txt > /dev/null`                                                   | 2.7.0     |    10m 49.869s | Report (sorted)  | hashtable                            |       1 | Outperforms `awk`, but leaves performance on the table from missed optimizations.                           |
 
 The commands that are noted as "only stores hash" are in theory vulnerable to hash collisions, but in practice with the
 64-bit hashes they're using it would be extraordinarily rare to see incorrect results.

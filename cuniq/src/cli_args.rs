@@ -44,7 +44,7 @@ pub struct CliArgs {
 
     /// Set the number of threads used to perform the count. By default, the number of logical cores
     /// is used.
-    /// Not all counting modes support parallelism: see `--mode` for details.
+    /// Not all counting modes support parallelism: currently only `--mode=estimate` is compatible.
     #[arg(long)]
     pub threads: Option<usize>,
 
@@ -86,7 +86,7 @@ pub enum Mode {
     /// Uses the HyperLogLog algorithm to estimate cardinality with fixed memory.
     /// Use the `--size` flag to specify the number of 1-byte registers to use. More registers will
     /// increase estimate accuracy. By default, 65536 is used. This mode is not compatible with
-    /// `--report`.
+    /// `--report`. This is the only mode that supports multi-threading with `--threads`.
     Estimate,
 }
 
