@@ -81,18 +81,6 @@ impl Chunk {
     fn as_slice<'a>(self) -> &'a [u8] {
         unsafe { std::slice::from_raw_parts(self.start_ptr, self.len) }
     }
-
-    #[inline(always)]
-    fn end_ptr(self) -> *const u8 {
-        unsafe { self.start_ptr.add(self.len) }
-    }
-
-    #[inline(always)]
-    fn clamp(&mut self, parent: Self) {
-        self.start_ptr = self.start_ptr.max(parent.start_ptr);
-        let end = self.end_ptr().min(parent.end_ptr());
-        self.len = unsafe { end.offset_from(self.start_ptr) } as usize;
-    }
 }
 
 struct ChunkIterator {
