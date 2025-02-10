@@ -9,6 +9,8 @@ use crate::count_unique_impl::result::Error;
 use crate::{CountUnique, Merge};
 use crate::{CountUniqueHash, Result};
 
+const DEFAULT_CHUNK_SIZE: usize = 0x1 << 27; // 2^27 == 134217728 bytes == 128 MiB
+
 /// Provides capability to read data from newline-delimited memory-mapped files
 pub trait CountUniqueFromMemmapFile: CountUnique {
     /// Count unique lines in some newline-delimited files.
@@ -198,14 +200,22 @@ where
             let mem_map = MmapOptions::new()
                 .map_raw_read_only(file)
                 .map_err(|e| Error::io_static("failed to memmap file", e))?;
+
+            #[cfg(unix)]
+            {
+                use memmap2::Advice;
+                mem_map.advise(Advice::WillNeed).map_err(|e| {
+                    Error::io_static("failed to set memmap file to WillNeed mode", e)
+                })?;
+            }
+
             mem_maps.push(mem_map);
         }
 
         let chunk_sender_join_handle = {
-            const CHUNK_SIZE: usize = 0x1 << 27; // 2^27 == 134217728 bytes == 128 MiB
             let chunk_iters = mem_maps
                 .iter()
-                .map(|mem_map| ChunkIterator::new(CHUNK_SIZE, mem_map))
+                .map(|mem_map| ChunkIterator::new(DEFAULT_CHUNK_SIZE, mem_map))
                 .collect::<Vec<_>>();
             std::thread::spawn(move || {
                 for chunk in chunk_iters.into_iter().flatten() {
@@ -232,7 +242,7 @@ where
                 .map_err(|e| Error::message(format!("thread join error: {e:?}")))?;
         }
 
-        // ensure mem_map still exists here, as if it gets dropped earlier we hit UB
+        // ensure mem_maps still exists here, as if it gets dropped earlier we hit UB
         drop(mem_maps);
 
         Ok(())
@@ -253,11 +263,67 @@ where
     T: Merge + Send + Sync + 'static,
 {
     fn parallel_count_unique_in_memmap_files(&mut self, files: &[File], threads: usize) -> Result {
-        //TODO: this isn't great: some kind of work stealing pool would be more suitable for a large number of files.
-        for file in files {
-            self.parallel_count_unique_in_memmap_file(file, threads)?;
+        if files.len() == 1 {
+            self.parallel_count_unique_in_memmap_file(&files[0], threads)
+        } else {
+            let mut mem_maps = Vec::with_capacity(files.len());
+            for file in files {
+                let mem_map = MmapOptions::new()
+                    .map_raw_read_only(file)
+                    .map_err(|e| Error::io_static("failed to memmap file", e))?;
+
+                #[cfg(unix)]
+                {
+                    use memmap2::Advice;
+                    mem_map.advise(Advice::WillNeed).map_err(|e| {
+                        Error::io_static("failed to set memmap file to WillNeed mode", e)
+                    })?;
+                }
+
+                mem_maps.push(mem_map);
+            }
+
+            let (chunk_sender, join_handles) = {
+                let (chunk_sender, chunk_receiver) = crossbeam_channel::bounded::<Chunk>(1024);
+
+                let join_handles = (0..threads)
+                    .map(|_| {
+                        // spawn the thread
+                        let mut counter = self.clone();
+                        let chunk_receiver = chunk_receiver.clone();
+                        std::thread::spawn(move || {
+                            while let Ok(chunk) = chunk_receiver.recv() {
+                                counter.count_unique_in_bytes(chunk.as_slice());
+                            }
+                            counter
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                (chunk_sender, join_handles)
+            };
+
+            mem_maps
+                .iter()
+                .flat_map(|mem_map| ChunkIterator::new(DEFAULT_CHUNK_SIZE, mem_map))
+                .for_each(|chunk| {
+                    chunk_sender
+                        .send(chunk)
+                        .expect("chunk sender channel was unexpectedly closed")
+                });
+
+            for join_handle in join_handles {
+                let counter = join_handle
+                    .join()
+                    .map_err(|e| Error::message(format!("thread join error: {e:?}")))?;
+                let _ = counter;
+                self.merge(&counter);
+            }
+
+            // ensure mem_maps still exists here, as if it gets dropped earlier we hit UB
+            drop(mem_maps);
+
+            Ok(())
         }
-        Ok(())
     }
 
     fn parallel_count_unique_in_memmap_file(&mut self, file: &File, threads: usize) -> Result {
@@ -273,80 +339,15 @@ where
                 .map_err(|e| Error::io_static("failed to set memmap file to WillNeed mode", e))?;
         }
 
-        let len = mem_map.len();
-        let chunk_size = len / threads;
-        let start_ptr = mem_map.as_ptr();
-        let mut chunk_start_ptr = start_ptr;
-        let end_ptr_exclusive = unsafe { start_ptr.add(len) };
-        let mut chunk_end_ptr_exclusive = unsafe { chunk_start_ptr.add(chunk_size) };
-        let join_handles = (0..threads)
-            .filter_map(|_thread_index| {
-                if chunk_start_ptr >= end_ptr_exclusive {
-                    // edge case: we already ran out of data so we will not create this thread
-                    None
-                } else if chunk_end_ptr_exclusive >= end_ptr_exclusive {
-                    // edge case: end ptr has passed end of mem_map
-                    // just use real end and skip the newline search shit
-                    // equivalent to  `chunk = &mem_map[chunk_start_index_inclusive..]`
-                    let chunk = unsafe {
-                        // should be used in the form `end.offset_from(start)`
-                        let chunk_len = end_ptr_exclusive.offset_from(chunk_start_ptr);
-                        // `isize as usize` is a no-op, so we'll get garbage data if the isize was negative
-                        let chunk_len = chunk_len as usize;
-                        std::slice::from_raw_parts(chunk_start_ptr, chunk_len)
-                    };
-                    Some(chunk)
-                } else {
-                    // equivalent to `search_range = &mem_map[chunk_end_index_exclusive..]`
-                    let search_range = unsafe {
-                        // should be used in the form `end.offset_from(start)`
-                        let search_range_len =
-                            end_ptr_exclusive.offset_from(chunk_end_ptr_exclusive);
-                        // `isize as usize` is a no-op, so we'll get garbage data if the isize was negative
-                        let search_range_len = search_range_len as usize;
-
-                        std::slice::from_raw_parts(chunk_end_ptr_exclusive, search_range_len)
-                    };
-                    if let Some(newline_index) = memchr::memchr(b'\n', search_range) {
-                        // equivalent to `chunk = &mem_map[chunk_start_index_inclusive..newline_index]`
-
-                        // convert the search result into a direct pointer to the newline byte
-                        let newline_ptr = unsafe { chunk_end_ptr_exclusive.add(newline_index) };
-
-                        let chunk = unsafe {
-                            // should be used in the form `end.offset_from(start)`
-                            let chunk_len = newline_ptr.offset_from(chunk_start_ptr);
-                            // `isize as usize` is a no-op, so we'll get garbage data if the isize was negative
-                            let chunk_len = chunk_len as usize;
-                            std::slice::from_raw_parts(chunk_start_ptr, chunk_len)
-                        };
-                        // update start of next chunk to be directly after this newline
-                        chunk_start_ptr = unsafe { newline_ptr.add(1) };
-
-                        // update next of next chunk to be 1 chunk worth of size after the start
-                        chunk_end_ptr_exclusive = unsafe { chunk_start_ptr.add(chunk_size) };
-
-                        Some(chunk)
-                    } else {
-                        // edge case: we couldn't find a newline so this 1-word chunk will be the last thread
-                        // equivalent to  `chunk = &mem_map[chunk_start_index_inclusive..]`
-                        let chunk = unsafe {
-                            // should be used in the form `end.offset_from(start)`
-                            let chunk_len = end_ptr_exclusive.offset_from(chunk_start_ptr);
-                            // `isize as usize` is a no-op, so we'll get garbage data if the isize was negative
-                            let chunk_len = chunk_len as usize;
-                            std::slice::from_raw_parts(chunk_start_ptr, chunk_len)
-                        };
-                        Some(chunk)
-                    }
-                }
-                .map(|chunk| {
-                    // spawn the thread
-                    let mut counter = self.clone();
-                    std::thread::spawn(move || {
-                        counter.count_unique_in_bytes(chunk);
-                        counter
-                    })
+        let chunk_size = mem_map.len() / threads;
+        let chunk_iter = ChunkIterator::new(chunk_size, &mem_map);
+        let join_handles = chunk_iter
+            .map(|chunk| {
+                // spawn the thread
+                let mut counter = self.clone();
+                std::thread::spawn(move || {
+                    counter.count_unique_in_bytes(chunk.as_slice());
+                    counter
                 })
             })
             .collect::<Vec<_>>();
