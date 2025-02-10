@@ -7,7 +7,7 @@ use std::hash::BuildHasher;
 use hashbrown::HashTable;
 
 use super::{init_hasher_state, RandomState};
-use crate::CountUnique;
+use crate::{CountUnique, CountUniqueHash};
 
 /// Calculates the unique count and holds necessary state.
 ///
@@ -117,6 +117,18 @@ impl CountUnique for InexactHashingLineCounter<()> {
 
     fn reset(&mut self) {
         InexactHashingLineCounter::reset(self)
+    }
+}
+
+impl<T> CountUniqueHash for InexactHashingLineCounter<T> {
+    fn count_hash(&mut self, hash: u64) {
+        let entry = self
+            .map
+            .entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
+        entry.or_insert_with(|| {
+            self.count += 1;
+            hash
+        });
     }
 }
 

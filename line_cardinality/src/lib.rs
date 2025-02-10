@@ -11,6 +11,8 @@
 //!
 //! Examples of reporting occurrences of each distinct line can be found in [`ReportUnique`].
 
+extern crate core;
+
 use std::io::BufRead;
 
 use bstr::io::BufReadExt;
@@ -165,6 +167,10 @@ pub trait CountUnique: Sized {
 
     /// Resets internal state of this [`CountUnique`] for reuse
     fn reset(&mut self);
+}
+
+pub trait CountUniqueHash: Sized {
+    fn count_hash(&mut self, hash: u64);
 }
 
 /// A [`CountUnique`] that can be merged with another `CountUnique` of the same type. Notably, this
