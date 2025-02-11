@@ -1,13 +1,12 @@
 // This file is part of line_cardinality. Copyright © 2025 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
-use memmap2::{Mmap, MmapOptions, MmapRaw};
-use std::fs::File;
-
 use crate::count_unique_impl::init_hasher_state;
 use crate::count_unique_impl::result::Error;
 use crate::{CountUnique, Merge};
 use crate::{CountUniqueHash, Result};
+use memmap2::{Mmap, MmapOptions, MmapRaw};
+use std::fs::File;
 
 const DEFAULT_CHUNK_SIZE: usize = 0x1 << 27; // 2^27 == 134217728 bytes == 128 MiB
 
@@ -129,7 +128,7 @@ impl Iterator for ChunkIterator {
 
             // update start ptr so that the next iteration returns None
             self.chunk_start_ptr = self.end_ptr;
-            
+
             Some(chunk)
         } else {
             // equivalent to `search_range = &mem_map[chunk_end_index_exclusive..]`
@@ -160,10 +159,10 @@ impl Iterator for ChunkIterator {
                 // equivalent to  `chunk = &mem_map[chunk_start_index_inclusive..]`
                 let chunk =
                     unsafe { Chunk::from_ptr_range(self.chunk_start_ptr, self.chunk_end_ptr) };
-                
+
                 // update start ptr so that the next iteration returns None
                 self.chunk_start_ptr = self.end_ptr;
-                
+
                 Some(chunk)
             }
         }
@@ -179,30 +178,6 @@ where
         files: &[File],
         threads: usize,
     ) -> Result {
-        let random_state = init_hasher_state();
-        let (hash_sender, hash_receiver) = crossbeam_channel::bounded::<u64>(1024);
-
-        // create worker threads and a channel to read the chunks
-        let (chunk_sender, mut join_handles) = {
-            let (chunk_sender, chunk_receiver) = crossbeam_channel::bounded::<Chunk>(1024);
-            let join_handles = (0..threads)
-                .map(|_| {
-                    let chunk_receiver = chunk_receiver.clone();
-                    let hash_sender = hash_sender.clone();
-                    let random_state = random_state.clone();
-                    std::thread::spawn(move || {
-                        while let Ok(chunk) = chunk_receiver.recv() {
-                            let hash = random_state.hash_one(chunk.as_slice());
-                            hash_sender
-                                .send(hash)
-                                .expect("hash sender channel was unexpectedly closed");
-                        }
-                    })
-                })
-                .collect::<Vec<_>>();
-            (chunk_sender, join_handles)
-        };
-
         let mut mem_maps = Vec::with_capacity(files.len());
         for file in files {
             let mem_map = MmapOptions::new()
@@ -220,34 +195,69 @@ where
             mem_maps.push(mem_map);
         }
 
-        let chunk_sender_join_handle = {
+        let random_state = init_hasher_state();
+        let (hash_sender, hash_receiver) = crossbeam_channel::bounded::<Vec<u64>>(0);
+
+        // create worker threads and a channel to read the chunks
+        let chunk_sender = {
+            // move this into the block so the extra copy gets dropped at the end
+            let hash_sender = hash_sender;
+            let (chunk_sender, chunk_receiver) = crossbeam_channel::bounded::<Chunk>(0);
+            (0..threads).for_each(|_| {
+                let chunk_receiver = chunk_receiver.clone();
+                let hash_sender = hash_sender.clone();
+                let random_state = random_state.clone();
+                std::thread::spawn(move || {
+                    while let Ok(chunk) = chunk_receiver.recv() {
+                        let mut hashes = Vec::with_capacity(DEFAULT_CHUNK_SIZE);
+                        let mut start: usize = 0;
+                        let bytes = chunk.as_slice();
+                        for newline_index in memchr::memchr_iter(b'\n', bytes) {
+                            let hash = random_state.hash_one(&bytes[start..newline_index]);
+                            hashes.push(hash);
+                            start = newline_index + 1;
+                        }
+                        // handle trailing
+                        if start < bytes.len() {
+                            let hash = random_state.hash_one(&bytes[start..]);
+                            hashes.push(hash);
+                        }
+                        hash_sender
+                            .send(hashes)
+                            .expect("hash sender channel was unexpectedly closed");
+                    }
+                });
+            });
+            chunk_sender
+        };
+
+        {
+            // make sure the sender gets dropped at the end of this block
+            let chunk_sender = chunk_sender;
             let chunk_iters = mem_maps
                 .iter()
                 .map(|mem_map| ChunkIterator::new(DEFAULT_CHUNK_SIZE, mem_map))
                 .collect::<Vec<_>>();
             std::thread::spawn(move || {
                 for chunk in chunk_iters.into_iter().flatten() {
-                    chunk_sender.send(chunk).unwrap()
+                    chunk_sender
+                        .send(chunk)
+                        .expect("chunk sender channel was unexpectedly closed");
                 }
             })
         };
-        join_handles.push(chunk_sender_join_handle);
 
         // aggregate the hashes
         {
             // I want this to get dropped at a specific time, so I move it into this block
             let hash_receiver = hash_receiver;
 
-            while let Ok(hash) = hash_receiver.recv() {
-                self.count_hash(hash);
+            while let Ok(hashes) = hash_receiver.recv() {
+                for hash in hashes {
+                    self.count_hash(hash);
+                }
             }
-        }
-
-        // wait for the workers to exit
-        for join_handle in join_handles {
-            join_handle
-                .join()
-                .map_err(|e| Error::message(format!("thread join error: {e:?}")))?;
+            // this cannot end until all hash senders are done, so no need to join on them
         }
 
         // ensure mem_maps still exists here, as if it gets dropped earlier we hit UB
@@ -292,7 +302,7 @@ where
             }
 
             let (chunk_sender, join_handles) = {
-                let (chunk_sender, chunk_receiver) = crossbeam_channel::bounded::<Chunk>(1024);
+                let (chunk_sender, chunk_receiver) = crossbeam_channel::bounded::<Chunk>(0);
 
                 let join_handles = (0..threads)
                     .map(|_| {
@@ -310,14 +320,18 @@ where
                 (chunk_sender, join_handles)
             };
 
-            mem_maps
-                .iter()
-                .flat_map(|mem_map| ChunkIterator::new(DEFAULT_CHUNK_SIZE, mem_map))
-                .for_each(|chunk| {
-                    chunk_sender
-                        .send(chunk)
-                        .expect("chunk sender channel was unexpectedly closed")
-                });
+            {
+                // ensure chunk_sender is dropped early
+                let chunk_sender = chunk_sender;
+                mem_maps
+                    .iter()
+                    .flat_map(|mem_map| ChunkIterator::new(DEFAULT_CHUNK_SIZE, mem_map))
+                    .for_each(|chunk| {
+                        chunk_sender
+                            .send(chunk)
+                            .expect("chunk sender channel was unexpectedly closed")
+                    });
+            }
 
             for join_handle in join_handles {
                 let counter = join_handle
