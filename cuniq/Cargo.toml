@@ -25,17 +25,20 @@ strip = false # required for `cargo-bloat`
 debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output significantly better
 
 [features]
-default = ["memmap", "compile-time-rng"]
+default = ["parallel", "compile-time-rng"]
 # Ability to read files via memory-mapping
-memmap = ["line_cardinality/memmap", "dep:num_cpus"]
+memmap = ["line_cardinality/memmap"]
+# Ability to process data using multiple threads
+parallel = ["memmap", "line_cardinality/parallel", "dep:num_cpus"]
+# Enables compile-time RNG for ahash seed
 compile-time-rng = ["line_cardinality/compile-time-rng"]
 # Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.
-bench = ["memmap"]
+bench = ["parallel"]
 
 [dependencies]
 clap = { version = "4", features = ["derive", "wrap_help"] }
 cfg-if.workspace = true
-line_cardinality = { path = "../line_cardinality", version = "2", default-features = false, features = ["ahash", "file", "hash-only"] }
+line_cardinality = { path = "../line_cardinality", version = "2", default-features = false, features = ["ahash"] }
 bstr.workspace = true
 num_cpus = { version = "1", optional = true }
 

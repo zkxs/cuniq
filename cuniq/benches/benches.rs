@@ -1,4 +1,4 @@
-// This file is part of cuniq. Copyright © 2024 cuniq contributors.
+// This file is part of cuniq. Copyright © 2025 cuniq contributors.
 // cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 //! Benchmarks for the built binary
@@ -10,7 +10,7 @@ use std::process::{Command, Stdio};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 // require certain features for this benchmark
-#[cfg(not(all(feature = "memmap")))]
+#[cfg(not(all(feature = "parallel")))]
 compile_error!("missing required features");
 
 // Require that we don't have compile-time-rng, which would cause the binary and the bench to use different RNG seeds.

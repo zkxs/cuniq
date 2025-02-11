@@ -1,4 +1,4 @@
-// This file is part of cuniq. Copyright © 2024 cuniq contributors.
+// This file is part of cuniq. Copyright © 2025 cuniq contributors.
 // cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 use std::collections::HashSet;
@@ -26,10 +26,7 @@ fn create_constants<P: AsRef<Path>>(path: P) -> io::Result<()> {
     let file = fs::File::create(path)?;
     let mut writer = BufWriter::new(file);
     writer.write_fmt(format_args!(
-        "pub const GIT_COMMIT_HASH: &str = \"{git_commit_hash}\";\n"
-    ))?;
-    writer.write_fmt(format_args!(
-        "pub const CLAP_VERSION: &str = \"{clap_version}\";\n"
+        "pub(crate) const CLAP_VERSION: &str = \"{clap_version}\";\n"
     ))?;
     writer.flush()
 }
@@ -57,7 +54,7 @@ fn git_commit_hash() -> String {
 /// Calculate the diff from actual features and expected features
 fn feature_diff() -> String {
     // features we expect for this binary
-    let mut expected_features = HashSet::from(["compile-time-rng", "memmap"]);
+    let mut expected_features = HashSet::from(["compile-time-rng", "memmap", "parallel"]);
 
     // features that are just aliases for sets of real features
     let ignored_features = HashSet::from(["default"]);

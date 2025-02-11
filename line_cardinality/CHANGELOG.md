@@ -2,7 +2,7 @@
 
 This project follows [semantic versioning](https://semver.org/).
 
-# 2.1.0 - Unreleased
+# 3.0.0 - Unreleased
 
 ## Added
 

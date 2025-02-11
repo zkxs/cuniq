@@ -10,7 +10,7 @@ use std::hash::BuildHasher;
 
 use crate::{init_hasher_state, RandomState};
 
-pub struct Processor {
+pub(crate) struct Processor {
     map: HashTable<Vec<u8>>,
     random_state: RandomState,
     count: usize,

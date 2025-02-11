@@ -1,4 +1,4 @@
-// This file is part of line_cardinality. Copyright © 2024 line_cardinality contributors.
+// This file is part of line_cardinality. Copyright © 2025 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 //! line_cardinality provides utilities to count or estimate unique lines from input data. It can read from a
@@ -18,22 +18,22 @@ use std::io::BufRead;
 use bstr::io::BufReadExt;
 use cfg_if::cfg_if;
 
-#[cfg(all(feature = "file", feature = "memmap"))]
-pub use count_unique_impl::file_io::memmap::{
-    CountUniqueFromMemmapFile, ParallelChunkedCountUniqueFromMemmapFile,
-    ParallelCountUniqueFromMemmapFile,
+#[cfg(feature = "memmap")]
+pub use count_unique_impl::file_io::memmap::CountUniqueFromMemmapFile;
+#[cfg(feature = "parallel")]
+pub use count_unique_impl::file_io::parallel::{
+    ParallelChunkedCountUniqueFromMemmapFile, ParallelCountUniqueFromMemmapFile,
 };
-#[cfg(feature = "file")]
 pub use count_unique_impl::file_io::read::CountUniqueFromReadFile;
 pub use count_unique_impl::hashing::{
     HashingLineCounter, HashingLineCounterIntoIter, HashingLineCounterIter,
 };
-#[cfg(feature = "hash-only")]
 pub use count_unique_impl::hashing_inexact::InexactHashingLineCounter;
 pub use count_unique_impl::hyperloglog::HyperLogLog;
 pub use count_unique_impl::result::Cause as ErrorCause;
 pub use count_unique_impl::result::Error;
 use count_unique_impl::result::Result;
+use crate::count_unique_impl::file_io::util::LineIterator;
 
 pub(crate) mod count_unique_impl;
 
@@ -145,17 +145,13 @@ pub trait CountUnique: Sized {
     fn count_unique_in_bytes(&mut self, bytes: &[u8]) {
         cfg_if! {
             if #[cfg(feature = "memchr")] {
-                let mut start: usize = 0;
-                for newline_index in memchr::memchr_iter(b'\n', bytes) {
-                    self.count_line(&bytes[start..newline_index]);
-                    start = newline_index + 1;
-                }
-                // handle trailing
-                if start < bytes.len() {
-                    self.count_line(&bytes[start..]);
+                for line in LineIterator::new(bytes) {
+                    self.count_line(line);
                 }
             } else {
-                self.count_unique_in_read(bytes).expect("somehow failed to BufRead bytes from memory!?")
+                self
+                    .count_unique_in_read(bytes)
+                    .expect("somehow failed to BufRead bytes from memory!?")
             }
         }
     }

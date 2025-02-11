@@ -10,7 +10,7 @@ use crate::{init_hasher_state, RandomState};
 use std::hash::BuildHasher;
 use std::ops::Deref;
 
-pub struct Processor {
+pub(crate) struct Processor {
     map: HashTable<Box<[u8]>>,
     random_state: RandomState,
     count: usize,

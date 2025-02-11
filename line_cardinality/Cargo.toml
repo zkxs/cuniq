@@ -14,16 +14,14 @@ rust-version = "1.74.1"
 
 [features]
 default = ["ahash", "compile-time-rng", "memchr"]
-# Ability to read file handles via Read/BufRead
-file = []
 # Ability to read file handles via memory-mapping
-memmap = ["dep:memmap2", "memchr", "dep:crossbeam-channel"]
+memmap = ["dep:memmap2", "memchr"]
+# Ability to process data using multiple threads
+parallel = ["memmap", "dep:crossbeam-channel"]
 # Enables compile-time RNG for ahash seed
 compile-time-rng = ["ahash/compile-time-rng"]
-# Enables an algorithm that only stores hashes and does not properly check lines for equality (e.g. it's prone to rare collisions)
-hash-only = []
 # Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.
-bench = ["ahash", "memmap", "memchr", "file"]
+bench = ["ahash", "parallel"]
 
 [dependencies]
 cfg-if.workspace = true

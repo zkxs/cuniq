@@ -1,4 +1,4 @@
-// This file is part of cuniq. Copyright © 2024 cuniq contributors.
+// This file is part of cuniq. Copyright © 2025 cuniq contributors.
 // cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 use std::fs::File;
@@ -23,7 +23,7 @@ use crate::cli_args::{CliArgs, Mode};
 mod cli_args;
 
 /// constants generated in build.rs
-pub mod constants {
+pub(crate) mod constants {
     include!(env!("CONSTANTS_PATH"));
 }
 

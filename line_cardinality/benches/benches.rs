@@ -19,7 +19,7 @@ use line_cardinality::{
     feature = "ahash",
     feature = "memmap",
     feature = "memchr",
-    feature = "file"
+    feature = "parallel"
 )))]
 compile_error!("missing required features");
 
@@ -70,7 +70,7 @@ impl TestFile {
 }
 
 /// hasher with pre-generated random seed
-pub fn init_hasher_state() -> RandomState {
+pub(crate) fn init_hasher_state() -> RandomState {
     RandomState::with_seeds(
         0xD4D1C62E748C6F9F,
         0x6AB3CDB8BD6660B5,
