@@ -156,9 +156,6 @@ pub trait CountUnique: Sized {
         }
     }
 
-    /// Count a single line, incrementing counters if it is the first occurrence of that line.
-    fn count_line(&mut self, line: &[u8]);
-
     /// Returns current cardinality count of the [`CountUnique`].
     fn count(&self) -> usize;
 
@@ -166,13 +163,22 @@ pub trait CountUnique: Sized {
     fn reset(&mut self);
 }
 
-pub trait CountUniqueHash: Sized {
+/// A [`CountUnique`] that stores line information. This enables lossless handling of hash
+/// collisions and reporting of counts per-line, but incurs an extra memory cost.
+pub trait CountUniqueLine: CountUnique {
+    /// Count a single line, incrementing counters if it is the first occurrence of that line.
+    fn count_line(&mut self, hash: u64, line: &[u8]);
+}
+
+/// A [`CountUnique`] that only stores hash and not line information. This enables algorithms
+/// that have increasing memory-efficiency in exchange for decreasing precision.
+pub trait CountUniqueHash: CountUnique {
     fn count_hash(&mut self, hash: u64);
 }
 
-/// A [`CountUnique`] that can be merged with another `CountUnique` of the same type. Notably, this
+/// A [`CountUnique`] that can be cheaply merged with another `CountUnique` of the same type. Notably, this
 /// allows simple parallel implementations as the states can be merged at the end of the counting phase.
-pub trait Merge: CountUnique + Clone {
+pub trait Merge: CountUnique {
     fn merge(&mut self, other: &Self);
 }
 
@@ -187,7 +193,7 @@ pub trait EmitLines {
     fn into_vec(self) -> Vec<Vec<u8>>;
 }
 
-/// Functionality to count occurrences of each line
+/// Functionality to count occurrences of each line. `T` is the counter type used.
 ///
 /// ```rust
 /// use line_cardinality::{CountUnique, HashingLineCounter, ReportUnique};
