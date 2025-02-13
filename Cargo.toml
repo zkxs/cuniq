@@ -28,5 +28,4 @@ debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output s
 [workspace.dependencies]
 ahash = { version = "0.8", default-features = false }
 bstr = "1"
-cfg-if = "1"
 criterion = "0.5"

@@ -41,3 +41,9 @@ RUSTFLAGS="-C target-cpu=native" cargo +nightly install -Z build-std=std --path 
 # Other Bits and Bobs
 
 Check if I forgot any copyright notices: `rg -g '*.rs' --files-without-match -F 'GNU GPL v3.0'`
+
+MSRV checks:
+```shell
+cargo msrv --package cuniq --path cuniq verify
+cargo msrv --package line_cardinalty --path line_cardinality verify
+```

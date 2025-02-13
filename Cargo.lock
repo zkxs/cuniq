@@ -422,7 +422,6 @@ version = "3.0.0"
 dependencies = [
  "ahash",
  "bstr",
- "cfg-if",
  "criterion",
  "hashbrown",
 ]

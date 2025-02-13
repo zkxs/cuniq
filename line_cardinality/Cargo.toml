@@ -13,7 +13,6 @@ autobenches = false
 rust-version = "1.74.1"
 
 [dependencies]
-cfg-if.workspace = true
 hashbrown = { version = "0.15", default-features = false }
 
 [dev-dependencies]
