@@ -21,7 +21,7 @@ use line_cardinality::Merge;
 use crate::cli_args::{CliArgs, Mode};
 
 mod cli_args;
-mod file_io;
+mod io;
 mod hash;
 
 /// constants generated in build.rs

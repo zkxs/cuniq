@@ -1,5 +1,5 @@
-// This file is part of line_cardinality. Copyright © 2025 line_cardinality contributors.
-// line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
+// This file is part of cuniq. Copyright © 2025 cuniq contributors.
+// cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 //! Optional feature if `parallel` is enabled, which also guarantees `memmap2`, `memchr`, and `crossbeam-channel`
 
@@ -7,6 +7,7 @@ use cuniq::::util::{ChunkIterator, RawSlice};
 use line_cardinality::count_unique_impl::init_hasher_state;
 use memmap2::MmapOptions;
 use std::fs::File;
+use crate::io::util::ChunkIterator;
 
 const DEFAULT_CHUNK_SIZE: usize = 0x1 << 27; // 2^27 == 134217728 bytes == 128 MiB
 
