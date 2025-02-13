@@ -23,18 +23,10 @@ cargo test --package cuniq --all-features
 cargo test --package cuniq --no-default-features
 cargo test --package cuniq --no-default-features --features memmap
 #cargo test --package cuniq --benches --no-default-features --features bench # runs benchmarks as test without recording results
-cargo clippy --package line_cardinality --all-features
-cargo clippy --package line_cardinality --no-default-features
-cargo clippy --package line_cardinality --no-default-features --features file
-cargo clippy --package line_cardinality --no-default-features --features memchr
-cargo clippy --package line_cardinality --no-default-features --features ahash
-cargo clippy --package line_cardinality --benches --no-default-features --features bench
-cargo test --package line_cardinality --all-features
-cargo test --package line_cardinality --no-default-features
-cargo test --package line_cardinality --no-default-features --features file
-cargo test --package line_cardinality --no-default-features --features memchr
-cargo test --package line_cardinality --no-default-features --features ahash
-#cargo test --package line_cardinality --benches --no-default-features --features bench # runs benchmarks as test without recording results
+cargo clippy --package line_cardinality
+cargo clippy --package line_cardinality --benches
+cargo test --package line_cardinality
+cargo test --package line_cardinality --benches # runs benchmarks as test without recording results
 ```
 
 Also follow the instructions in [PERFORMANCE.md](PERFORMANCE.md) if you're doing anything perf-sensitive to make sure

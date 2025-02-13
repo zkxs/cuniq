@@ -27,19 +27,23 @@ debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output s
 [features]
 default = ["parallel", "compile-time-rng"]
 # Ability to read files via memory-mapping
-memmap = ["line_cardinality/memmap"]
+memmap = ["dep:memmap2", "memchr"]
 # Ability to process data using multiple threads
-parallel = ["memmap", "line_cardinality/parallel", "dep:num_cpus"]
+parallel = ["memmap", "dep:num_cpus", "dep:crossbeam-channel"]
 # Enables compile-time RNG for ahash seed
-compile-time-rng = ["line_cardinality/compile-time-rng"]
+compile-time-rng = ["ahash/compile-time-rng"]
 # Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.
 bench = ["parallel"]
 
 [dependencies]
-clap = { version = "4", features = ["derive", "wrap_help"] }
-cfg-if.workspace = true
-line_cardinality = { path = "../line_cardinality", version = "2", default-features = false, features = ["ahash"] }
+ahash = { workspace = true, default-features = false, optional = true } # More performant hashing algorithm
 bstr.workspace = true
+cfg-if.workspace = true
+clap = { version = "4", features = ["derive", "wrap_help"] }
+crossbeam-channel = { version = "0.5", optional = true }
+line_cardinality = { path = "../line_cardinality", version = "3" }
+memchr = { version = "2", optional = true }
+memmap2 = { version = "0.9", optional = true }
 num_cpus = { version = "1", optional = true }
 
 [dev-dependencies]

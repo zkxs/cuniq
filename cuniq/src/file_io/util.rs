@@ -5,7 +5,7 @@
 //! exporting these for public use outside of this crate.
 
 #[cfg(feature = "memchr")]
-pub(crate) use memchr_features::*;
+pub use memchr_features::*;
 
 /// Raw, pointer-based representation of a slice. This completely throws lifetimes out the window
 /// and is terribly unsafe, but is necessary as Rust is unable to reason about lifetimes in many
@@ -13,7 +13,7 @@ pub(crate) use memchr_features::*;
 /// background thread, but rustc will be unable to prove this making safe Rust impossible without
 /// copying large amounts of data.
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub(crate) struct RawSlice {
+pub struct RawSlice {
     start_ptr: *const u8,
     len: usize,
 }
@@ -23,12 +23,12 @@ unsafe impl Send for RawSlice {}
 impl RawSlice {
     #[inline(always)]
     #[allow(dead_code)] // may use this later, don't want to delete
-    pub(crate) unsafe fn from_ptr_and_len(start_ptr: *const u8, len: usize) -> Self {
+    pub unsafe fn from_ptr_and_len(start_ptr: *const u8, len: usize) -> Self {
         Self { start_ptr, len }
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn from_ptr_range(start_ptr: *const u8, end_ptr: *const u8) -> Self {
+    pub unsafe fn from_ptr_range(start_ptr: *const u8, end_ptr: *const u8) -> Self {
         // should be used in the form `end.offset_from(start)`
         let len = end_ptr.offset_from(start_ptr);
         // `isize as usize` is a no-op, so we'll get garbage data if the isize was negative
@@ -37,7 +37,7 @@ impl RawSlice {
     }
 
     #[inline(always)]
-    pub(crate) fn as_slice<'a>(self) -> &'a [u8] {
+    pub fn as_slice<'a>(self) -> &'a [u8] {
         unsafe { std::slice::from_raw_parts(self.start_ptr, self.len) }
     }
 }
@@ -47,7 +47,7 @@ mod memchr_features {
     use super::*;
 
     /// Extracts approximately `chunk_size`-sized newline-delimited chunks from a `RawSlice`.
-    pub(crate) struct ChunkIterator {
+    pub struct ChunkIterator {
         /// desired chunk size
         chunk_size: usize,
         /// exclusive end ptr for entire range
@@ -62,17 +62,17 @@ mod memchr_features {
 
     impl ChunkIterator {
         #[cfg(feature = "memmap")]
-        pub(crate) fn from_memmap(mem_map: &memmap2::MmapRaw, chunk_size: usize) -> Self {
+        pub fn from_memmap(mem_map: &memmap2::MmapRaw, chunk_size: usize) -> Self {
             Self::new(mem_map.as_ptr(), mem_map.len(), chunk_size)
         }
 
         #[allow(dead_code)] // may use this later, don't want to delete
-        pub(crate) fn from_raw_slice(raw_slice: RawSlice, chunk_size: usize) -> Self {
+        pub fn from_raw_slice(raw_slice: RawSlice, chunk_size: usize) -> Self {
             let RawSlice { start_ptr, len } = raw_slice;
             Self::new(start_ptr, len, chunk_size)
         }
 
-        pub(crate) fn new(start_ptr: *const u8, len: usize, chunk_size: usize) -> Self {
+        pub fn new(start_ptr: *const u8, len: usize, chunk_size: usize) -> Self {
             let chunk_start_ptr = start_ptr;
             let end_ptr = unsafe { start_ptr.add(len) };
             let chunk_end_ptr = unsafe { chunk_start_ptr.add(chunk_size) };
@@ -144,7 +144,7 @@ mod memchr_features {
     }
 
     /// Iterator over lines in some slice
-    pub(crate) struct LineIterator<'a> {
+    pub struct LineIterator<'a> {
         bytes: &'a [u8],
         /// Position to start next memchr search at
         start: usize,
@@ -153,7 +153,7 @@ mod memchr_features {
     }
 
     impl<'a> LineIterator<'a> {
-        pub(crate) fn new(bytes: &'a [u8]) -> Self {
+        pub fn new(bytes: &'a [u8]) -> Self {
             let start = 0;
             let memchr = memchr::memchr_iter(b'\n', bytes);
             Self {

@@ -1,12 +1,8 @@
 // This file is part of line_cardinality. Copyright © 2024 line_cardinality contributors.
 // line_cardinality is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
-use crate::{CountUnique, Error, Merge};
+use crate::{CountUnique, CountUniqueHash, Error, Merge};
 use std::f64::consts::E;
-#[cfg(not(feature = "ahash"))]
-use std::hash::BuildHasher;
-
-use super::{init_hasher_state, RandomState};
 
 type Hash = u64;
 
@@ -25,9 +21,7 @@ static DEFAULT_SIZE_ERROR_MESSAGE: &str = "expected DEFAULT_SIZE to be a valid s
 /// seen from functions that enumerate internal state, such as
 /// [`EmitLines::for_each_line`](crate::EmitLines::for_each_line).
 #[derive(Clone)]
-pub struct HyperLogLog<M> {
-    /// hasher instance
-    random_state: RandomState,
+pub struct HyperLogLog {
     size: usize,
     /// number of bits in the left part == log2(size)
     bits: u32,
@@ -36,11 +30,7 @@ pub struct HyperLogLog<M> {
     /// mask used to isolate the right side
     mask: Hash,
     /// HyperLogLog counter array
-    counters: Vec<u8>,
-    /// Growable temporary space used for reading strings into. This save a LOT of allocations.
-    string_buffer: Vec<u8>,
-    /// Function used to map lines before processing
-    line_mapper: M,
+    counters: Box<[u8]>,
 }
 
 fn check_size(size: usize) -> Result<SizeInfo, Error> {
@@ -80,14 +70,14 @@ struct SizeInfo {
     mask: Hash,
 }
 
-impl Default for HyperLogLog<()> {
+impl Default for HyperLogLog {
     fn default() -> Self {
         Self::new()
     }
 }
 
 /// Constructors that do not take a custom line mapper
-impl HyperLogLog<()> {
+impl HyperLogLog {
     /// Creates a new [`HyperLogLog`] with 65536 bytes of memory used to store state.
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_SIZE).expect(DEFAULT_SIZE_ERROR_MESSAGE)
@@ -101,52 +91,16 @@ impl HyperLogLog<()> {
             mask,
         } = check_size(size)?;
         Ok(HyperLogLog {
-            random_state: init_hasher_state(),
             size,
             bits,
             shift_bits,
             mask,
-            counters: vec![0; size],
-            string_buffer: Vec::new(),
-            line_mapper: (),
+            counters: vec![0; size].into_boxed_slice(),
         })
     }
 }
 
-/// Constructors that take a custom line mapper
-impl<M> HyperLogLog<M>
-where
-    M: for<'a> FnMut(&'a [u8], &'a mut Vec<u8>) -> &'a [u8],
-{
-    /// Creates a new [`HyperLogLog`] with 65536 bytes of memory used to store state and a custom
-    /// `line_mapper` function which will be applied to each read line before counting.
-    pub fn with_line_mapper(line_mapper: M) -> Self {
-        Self::with_line_mapper_and_capacity(line_mapper, DEFAULT_SIZE)
-            .expect(DEFAULT_SIZE_ERROR_MESSAGE)
-    }
-
-    /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state and a custom
-    /// `line_mapper` function which will be applied to each read line before counting.
-    pub fn with_line_mapper_and_capacity(line_mapper: M, size: usize) -> Result<Self, Error> {
-        let SizeInfo {
-            bits,
-            shift_bits,
-            mask,
-        } = check_size(size)?;
-        Ok(HyperLogLog {
-            random_state: init_hasher_state(),
-            size,
-            bits,
-            shift_bits,
-            mask,
-            counters: vec![0; size],
-            string_buffer: Vec::new(),
-            line_mapper,
-        })
-    }
-}
-
-impl<M> HyperLogLog<M> {
+impl HyperLogLog {
     /// get the first b bits where b == log2(SIZE) == bits()
     #[inline(always)]
     fn left_bits(&self, hash: Hash) -> usize {
@@ -203,9 +157,18 @@ impl<M> HyperLogLog<M> {
     }
 }
 
-impl CountUnique for HyperLogLog<()> {
-    fn count_line(&mut self, line: &[u8]) {
-        let hash: Hash = self.random_state.hash_one(line);
+impl CountUnique for HyperLogLog {
+    fn count(&self) -> usize {
+        HyperLogLog::count(self)
+    }
+
+    fn reset(&mut self) {
+        HyperLogLog::reset(self);
+    }
+}
+
+impl CountUniqueHash for HyperLogLog {
+    fn count_hash(&mut self, hash: Hash) {
         let index = self.left_bits(hash);
 
         // This is actually the position of the leftmost 1, which is why there's a +1 in there.
@@ -218,50 +181,9 @@ impl CountUnique for HyperLogLog<()> {
 
         *counter = u8::max(*counter, zero_count);
     }
-
-    fn count(&self) -> usize {
-        HyperLogLog::count(self)
-    }
-
-    fn reset(&mut self) {
-        HyperLogLog::reset(self);
-    }
 }
 
-impl<M> CountUnique for HyperLogLog<M>
-where
-    M: for<'a> FnMut(&'a [u8], &'a mut Vec<u8>) -> &'a [u8],
-{
-    fn count_line(&mut self, line: &[u8]) {
-        let line = (self.line_mapper)(line, &mut self.string_buffer);
-
-        let hash: Hash = self.random_state.hash_one(line);
-        let index = self.left_bits(hash);
-
-        // This is actually the position of the leftmost 1, which is why there's a +1 in there.
-        // Since we're counting bits in a u64 this is guaranteed to fit in a u8.
-        let zero_count = (self.right_bits(hash).leading_zeros() + 1 - self.bits) as u8;
-
-        // SAFETY: `index` must be in bounds for `self.counters`. It should be, because we ran it
-        // through the whole `check_size` function earlier.
-        let counter = unsafe { self.counters.get_unchecked_mut(index) };
-
-        *counter = u8::max(*counter, zero_count);
-    }
-
-    fn count(&self) -> usize {
-        HyperLogLog::count(self)
-    }
-
-    fn reset(&mut self) {
-        HyperLogLog::reset(self);
-    }
-}
-
-impl<M> Merge for HyperLogLog<M>
-where
-    M: for<'a> FnMut(&'a [u8], &'a mut Vec<u8>) -> &'a [u8] + Clone,
-{
+impl Merge for HyperLogLog {
     fn merge(&mut self, other: &Self) {
         assert_eq!(self.size, other.size);
         for index in 0..self.size {

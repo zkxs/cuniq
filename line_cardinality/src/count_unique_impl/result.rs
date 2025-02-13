@@ -5,8 +5,6 @@ use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use std::io;
 
-pub(crate) type Result = std::result::Result<(), Error>;
-
 #[derive(Debug)]
 enum Message {
     Dynamic(String),

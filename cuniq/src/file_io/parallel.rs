@@ -3,9 +3,8 @@
 
 //! Optional feature if `parallel` is enabled, which also guarantees `memmap2`, `memchr`, and `crossbeam-channel`
 
-use crate::count_unique_impl::file_io::util::{ChunkIterator, RawSlice};
-use crate::count_unique_impl::init_hasher_state;
-use crate::{CountUniqueHash, Error, Merge};
+use cuniq::::util::{ChunkIterator, RawSlice};
+use line_cardinality::count_unique_impl::init_hasher_state;
 use memmap2::MmapOptions;
 use std::fs::File;
 
@@ -18,7 +17,7 @@ pub trait ParallelChunkedCountUniqueFromMemmapFile: CountUniqueHash {
         &mut self,
         files: &[File],
         threads: usize,
-    ) -> crate::count_unique_impl::result::Result;
+    ) -> line_cardinality::count_unique_impl::result::Result;
 }
 
 impl<T> ParallelChunkedCountUniqueFromMemmapFile for T
@@ -29,7 +28,7 @@ where
         &mut self,
         files: &[File],
         threads: usize,
-    ) -> crate::count_unique_impl::result::Result {
+    ) -> line_cardinality::count_unique_impl::result::Result {
         let mut mem_maps = Vec::with_capacity(files.len());
         for file in files {
             let mem_map = MmapOptions::new()
@@ -126,14 +125,14 @@ pub trait ParallelCountUniqueFromMemmapFile: Merge {
         &mut self,
         files: &[File],
         threads: usize,
-    ) -> crate::count_unique_impl::result::Result;
+    ) -> line_cardinality::count_unique_impl::result::Result;
 
     /// Count unique lines in a newline-delimited file in parallel.
     fn parallel_count_unique_in_memmap_file(
         &mut self,
         file: &File,
         threads: usize,
-    ) -> crate::count_unique_impl::result::Result;
+    ) -> line_cardinality::count_unique_impl::result::Result;
 }
 
 impl<T> ParallelCountUniqueFromMemmapFile for T
@@ -144,7 +143,7 @@ where
         &mut self,
         files: &[File],
         threads: usize,
-    ) -> crate::count_unique_impl::result::Result {
+    ) -> line_cardinality::count_unique_impl::result::Result {
         if files.len() == 1 {
             self.parallel_count_unique_in_memmap_file(&files[0], threads)
         } else {
@@ -216,7 +215,7 @@ where
         &mut self,
         file: &File,
         threads: usize,
-    ) -> crate::count_unique_impl::result::Result {
+    ) -> line_cardinality::count_unique_impl::result::Result {
         let mem_map = MmapOptions::new()
             .map_raw_read_only(file)
             .map_err(|e| Error::io_static("failed to memmap file", e))?;

@@ -9,153 +9,45 @@
 //!
 //! Examples of counting total distinct lines can be found in [`CountUnique`].
 //!
-//! Examples of reporting occurrences of each distinct line can be found in [`ReportUnique`].
+//! Examples of reporting occurrences of each distinct line can be found in [`ReportUniqueLineHash`].
 
-extern crate core;
-
-use std::io::BufRead;
-
-use bstr::io::BufReadExt;
-use cfg_if::cfg_if;
-
-#[cfg(feature = "memmap")]
-pub use count_unique_impl::file_io::memmap::CountUniqueFromMemmapFile;
-#[cfg(feature = "parallel")]
-pub use count_unique_impl::file_io::parallel::{
-    ParallelChunkedCountUniqueFromMemmapFile, ParallelCountUniqueFromMemmapFile,
+// export things nested deeper within our module structure at the top-level of this crate
+pub use count_unique_impl::hashtable_lossless::{
+    HashingLineCounterIntoIter, HashingLineCounterIter, LosslessHashingLineCounter,
 };
-pub use count_unique_impl::file_io::read::CountUniqueFromReadFile;
-pub use count_unique_impl::hashing::{
-    HashingLineCounter, HashingLineCounterIntoIter, HashingLineCounterIter,
-};
-pub use count_unique_impl::hashing_inexact::InexactHashingLineCounter;
+pub use count_unique_impl::hashtable_lossy::LossyHashingLineCounter;
 pub use count_unique_impl::hyperloglog::HyperLogLog;
+pub use count_unique_impl::increment::Increment;
 pub use count_unique_impl::result::Cause as ErrorCause;
 pub use count_unique_impl::result::Error;
-use count_unique_impl::result::Result;
-use crate::count_unique_impl::file_io::util::LineIterator;
 
 pub(crate) mod count_unique_impl;
-
-/// A [`CountUnique`] that does not track each line's occurrence count, but is still
-/// useful for finding the total number of distinct lines in the input data.
-pub type LineCounter<M> = HashingLineCounter<(), M>;
 
 /// Functionality to count total unique lines.
 ///
 /// A typical example:
 ///
 /// ```rust
-/// use line_cardinality::{CountUnique, LineCounter};
+/// use std::hash::{BuildHasher, RandomState};
+/// use line_cardinality::{CountUnique, CountUniqueLineHash, LosslessHashingLineCounter};
+///
+/// // some setup
+/// let hasher = RandomState::new();
 ///
 /// // grab some test data
 /// let data = b"three\ntwo\nthree\ntwo\nthree\none";
-/// let mut reader = data.as_slice();
 ///
 /// // run the unique line count
-/// let mut line_counter = LineCounter::new();
-/// line_counter.count_unique_in_read(&mut reader).unwrap();
+/// let mut line_counter = LosslessHashingLineCounter::<()>::new();
+/// for line in data.split(|byte| *byte == b'\n') {
+///     let hash = hasher.hash_one(line);
+///     line_counter.count_line(line, hash, |line| hasher.hash_one(line));
+/// }
 ///
 /// // we expect there to be 3 distinct lines in this file
 /// assert_eq!(line_counter.count(), 3);
 /// ```
-///
-/// You may also wish to pre-process your input. For example, to trim whitespace from input:
-///
-/// ```rust
-/// use bstr::ByteSlice;
-/// use line_cardinality::{CountUnique, LineCounter};
-///
-/// let data = b"foo \n foo\nbar\nbar \nfoo\t\nfoo";
-/// let mut reader = data.as_slice();
-///
-/// let mut line_counter = LineCounter::with_line_mapper(|line, buffer| {
-///     line.trim()
-/// });
-///
-/// line_counter.count_unique_in_read(&mut reader).unwrap();
-///
-/// assert_eq!(line_counter.count(), 2);
-/// ```
-///
-/// Or a slightly more complex example, converting input to lowercase:
-///
-/// ```rust
-/// use bstr::ByteSlice;
-/// use line_cardinality::{CountUnique, LineCounter};
-///
-/// let data = b"FOO\nfoo\nBAR\nbar\nFOO\nFOO";
-/// let mut reader = data.as_slice();
-///
-/// let mut line_counter = LineCounter::with_line_mapper(|line, buffer| {
-///     buffer.clear();
-///     line.to_lowercase_into(buffer);
-///     buffer
-/// });
-///
-/// line_counter.count_unique_in_read(&mut reader).unwrap();
-///
-/// assert_eq!(line_counter.count(), 2);
-/// ```
-///
-/// `buffer` here is simply a reference to a growable buffer which you may optionally use in your processing.
-/// This is done to avoid unnecessary allocations.
-pub trait CountUnique: Sized {
-    /// Count unique lines in a newline-delimited [`BufRead`].
-    ///
-    /// ```rust
-    /// use line_cardinality::{CountUnique, LineCounter};
-    ///
-    /// // grab some test data
-    /// let data = b"three\ntwo\nthree\ntwo\nthree\none";
-    /// let mut reader = data.as_slice();
-    ///
-    /// // run the unique line count
-    /// let mut line_counter = LineCounter::new();
-    /// line_counter.count_unique_in_read(&mut reader).unwrap();
-    ///
-    /// // we expect there to be 3 distinct lines in this file
-    /// assert_eq!(line_counter.count(), 3);
-    /// ```
-    ///
-    /// Note that this can also be used to read [`Stdin`](std::io::Stdin):
-    ///
-    /// ```rust
-    /// use line_cardinality::{CountUnique, LineCounter};
-    ///
-    /// let mut reader = std::io::stdin().lock();
-    ///
-    /// // run the unique line count
-    /// let mut line_counter = LineCounter::new();
-    /// line_counter.count_unique_in_read(&mut reader).unwrap();
-    ///
-    /// // we didn't send anything over stdin
-    /// assert_eq!(line_counter.count(), 0);
-    /// ```
-    fn count_unique_in_read<T: BufRead>(&mut self, mut reader: T) -> Result {
-        reader
-            .for_byte_line(|line| {
-                self.count_line(line);
-                Ok(true)
-            })
-            .map_err(|e| Error::io_static("failed to read from buffer", e))
-    }
-
-    /// Count unique lines in newline-delimited bytes.
-    fn count_unique_in_bytes(&mut self, bytes: &[u8]) {
-        cfg_if! {
-            if #[cfg(feature = "memchr")] {
-                for line in LineIterator::new(bytes) {
-                    self.count_line(line);
-                }
-            } else {
-                self
-                    .count_unique_in_read(bytes)
-                    .expect("somehow failed to BufRead bytes from memory!?")
-            }
-        }
-    }
-
+pub trait CountUnique {
     /// Returns current cardinality count of the [`CountUnique`].
     fn count(&self) -> usize;
 
@@ -163,11 +55,14 @@ pub trait CountUnique: Sized {
     fn reset(&mut self);
 }
 
-/// A [`CountUnique`] that stores line information. This enables lossless handling of hash
+/// A [`CountUnique`] that stores line and hash information. This enables lossless handling of hash
 /// collisions and reporting of counts per-line, but incurs an extra memory cost.
-pub trait CountUniqueLine: CountUnique {
+pub trait CountUniqueLineHash: CountUnique {
     /// Count a single line, incrementing counters if it is the first occurrence of that line.
-    fn count_line(&mut self, hash: u64, line: &[u8]);
+    ///
+    /// `hasher` is called if entries need to be moved or copied to a new table.
+    /// This must return the same hash value that each entry was inserted with.
+    fn count_line(&mut self, line: &[u8], hash: u64, hasher: impl Fn(&[u8]) -> u64);
 }
 
 /// A [`CountUnique`] that only stores hash and not line information. This enables algorithms
@@ -183,7 +78,7 @@ pub trait Merge: CountUnique {
 }
 
 /// Functionality to emit lines from a [`CountUnique`]
-pub trait EmitLines {
+pub trait EmitLines: CountUnique {
     /// `f` is called for each map entry.
     fn for_each_line<L>(&self, f: L)
     where
@@ -196,51 +91,50 @@ pub trait EmitLines {
 /// Functionality to count occurrences of each line. `T` is the counter type used.
 ///
 /// ```rust
-/// use line_cardinality::{CountUnique, HashingLineCounter, ReportUnique};
+/// use std::hash::{BuildHasher, RandomState};
+/// use line_cardinality::{CountUnique, CountUniqueLineHash, LosslessHashingLineCounter, ReportUniqueLineHash};
+///
+/// // some setup
+/// let hasher = RandomState::new();
 ///
 /// // grab some test data
 /// let data = b"three\ntwo\nthree\ntwo\nthree\none";
 ///
 /// // run the unique line count
-/// let mut line_counter = HashingLineCounter::<u64, _>::new();
-/// line_counter.count_unique_in_read(data.as_slice()).unwrap();
+/// let mut line_counter = LosslessHashingLineCounter::<u64>::new();
+/// for line in data.split(|byte| *byte == b'\n') {
+///     let hash = hasher.hash_one(line);
+///     line_counter.count_line(line, hash, |line| hasher.hash_one(line));
+/// }
 ///
 /// // we can get occurrence counts for individual lines
-/// assert!(matches!(line_counter.get(b"one".as_slice()), Some(1)));
-/// assert!(matches!(line_counter.get(b"two".as_slice()), Some(2)));
-/// assert!(matches!(line_counter.get(b"three".as_slice()), Some(3)));
+/// let line = b"one".as_slice();
+/// assert!(matches!(line_counter.get(line, hasher.hash_one(line)), Some(1)));
+/// let line = b"two".as_slice();
+/// assert!(matches!(line_counter.get(line, hasher.hash_one(line)), Some(2)));
+/// let line = b"three".as_slice();
+/// assert!(matches!(line_counter.get(line, hasher.hash_one(line)), Some(3)));
 ///
 /// // we can also get the total number of distinct lines in the file
 /// assert_eq!(line_counter.count(), 3);
 /// ```
-pub trait ReportUnique<T> {
+pub trait ReportUniqueLineHash<C>: CountUniqueLineHash
+where
+    C: Increment,
+{
     /// `f` is called for each map entry.
-    fn for_each_report_entry<F: FnMut(&[u8], T)>(&self, f: F);
+    fn for_each_report_entry<F: FnMut(&[u8], C)>(&self, f: F);
 
-    /// Consume this [`ReportUnique`] and convert it into a [`Vec`]. This function has overhead, as
+    /// Consume this [`ReportUniqueLineHash`] and convert it into a [`Vec`]. This function has overhead, as
     /// it has to allocate a new Vec.
-    fn to_report_vec(self) -> Vec<(Vec<u8>, T)>;
+    fn to_report_vec(self) -> Vec<(Vec<u8>, C)>;
 
     /// Get the occurrence count for a specific line
-    fn get(&self, line: &[u8]) -> Option<T>;
+    fn get(&self, line: &[u8], hash: u64) -> Option<C>;
 
-    /// Convert this [`ReportUnique`] into a borrowed iter over each entry
-    fn iter(&self) -> HashingLineCounterIter<T>;
+    /// Convert this [`ReportUniqueLineHash`] into a borrowed iter over each entry
+    fn iter(&self) -> HashingLineCounterIter<C>;
 
-    /// Convert this [`ReportUnique`] into an owned iter over each entry
-    fn into_iter(self) -> HashingLineCounterIntoIter<T>;
-}
-
-/// A type that can count occurrences of a line
-pub trait Increment: Copy {
-    /// Increment the current count
-    fn increment(&mut self);
-
-    /// Create a new counter with the default starting value for a single entry found
-    fn new() -> Self;
-
-    /// Return the current count
-    fn count(&self) -> &Self {
-        self
-    }
+    /// Convert this [`ReportUniqueLineHash`] into an owned iter over each entry
+    fn into_iter(self) -> HashingLineCounterIntoIter<C>;
 }

@@ -4,11 +4,16 @@ This project follows [semantic versioning](https://semver.org/).
 
 # 3.0.0 - Unreleased
 
-## Added
+## Changed
 
-- New traits `ParallelCountUniqueFromMemmapFile` and `Merge`, which are used by the HyperLogLog implementation to enable
-  multi-threaded cardinality estimation.
-- `HyperLogLog` is now `Clone`.
+Completely refactored the entire library. This was done because the lack of separation between IO, line preprocessing,
+and cardinality calculation was bloating the library and turning it into spaghetti that was prone to needing huge
+rewrites due to small changes in the cuniq binary.
+
+The library is now much reduced in scope: IO, hashing, and line-preprocessing are now expected to be done by the caller.
+
+As far as I am aware no one is using this library, so there will not be a v2 -> v3 migration guide. If you are using
+this library and would like a migration guide, please yell at me.
 
 # 2.0.0 - 2024-09-15
 

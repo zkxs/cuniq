@@ -11,8 +11,8 @@ use clap::Parser;
 use cfg_if::cfg_if;
 
 use line_cardinality::{
-    CountUnique, Error, ErrorCause, HashingLineCounter, HyperLogLog, InexactHashingLineCounter,
-    LineCounter, ReportUnique,
+    CountUnique, Error, ErrorCause, LosslessHashingLineCounter, HyperLogLog, LossyHashingLineCounter,
+    LineCounter, ReportUniqueLineHash,
 };
 
 #[cfg(feature = "memmap")]
@@ -21,6 +21,8 @@ use line_cardinality::Merge;
 use crate::cli_args::{CliArgs, Mode};
 
 mod cli_args;
+mod file_io;
+mod hash;
 
 /// constants generated in build.rs
 pub(crate) mod constants {
@@ -65,7 +67,7 @@ fn run_with_const_parameters<const TRIM: bool, const LOWERCASE: bool>(args: CliA
 fn report<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
-            let mut processor = HashingLineCounter::<Count, _>::with_line_mapper_and_capacity(
+            let mut processor = LosslessHashingLineCounter::<Count, _>::with_line_mapper_and_capacity(
                 preprocess_line::<TRIM, LOWERCASE>,
                 args.size.unwrap_or(0),
             );
@@ -74,9 +76,7 @@ fn report<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), 
             let mut writer = BufWriter::new(stdout);
             if args.sort {
                 let mut report = processor.to_report_vec();
-                report.sort_unstable_by(|(a, _), (b, _)| {
-                    a.as_slice().as_bstr().cmp(b.as_slice().as_bstr())
-                });
+                report.sort_unstable_by(|(a, _), (b, _)| a.as_slice().cmp(b.as_slice()));
                 for (line, count) in report.iter() {
                     write_line(&mut writer, line, count)?;
                 }
@@ -127,7 +127,7 @@ fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), E
             std::mem::forget(processor); // same explanation as above
         }
         Mode::NearExact => {
-            let mut processor = InexactHashingLineCounter::with_line_mapper_and_capacity(
+            let mut processor = LossyHashingLineCounter::with_line_mapper_and_capacity(
                 preprocess_line::<TRIM, LOWERCASE>,
                 args.size.unwrap_or(0),
             );

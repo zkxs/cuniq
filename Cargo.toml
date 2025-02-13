@@ -26,7 +26,7 @@ strip = false # required for `cargo-bloat`
 debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output significantly better
 
 [workspace.dependencies]
+ahash = { version = "0.8", default-features = false }
+bstr = "1"
 cfg-if = "1"
 criterion = "0.5"
-memmap2 = "0.9"
-bstr = "1"

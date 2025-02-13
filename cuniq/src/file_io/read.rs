@@ -4,8 +4,6 @@
 use std::fs::File;
 use std::io::BufReader;
 
-use crate::{CountUnique, Result};
-
 /// Provides capability to read data from newline-delimited files
 pub trait CountUniqueFromReadFile: CountUnique {
     /// Count unique lines in some newline-delimited files.
