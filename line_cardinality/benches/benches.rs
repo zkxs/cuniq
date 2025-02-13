@@ -12,19 +12,24 @@ use bstr::io::BufReadExt;
 use bstr::ByteSlice;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
+use crate::baked_in_hash::BakedInHashLineCounter;
 use line_cardinality::{
-    CountUnique, CountUniqueHash, CountUniqueLineHash, LosslessHashingLineCounter,
+    CountUnique, CountUniqueHash, CountUniqueLineHash, HyperLogLog, LosslessHashingLineCounter,
     LossyHashingLineCounter,
 };
 
 criterion_group!(benches, bench_tweaks);
 criterion_main!(benches);
 
+mod baked_in_hash;
+
 /// primary test condition for comparing high cardinality
 const TEST_FILE_ENGLISH_WORDS: TestFile = TestFile::new("hamlet_words.txt", 5414);
 
 /// one-off count of the lowercase distinct words for a certain benchmark
 const ENGLISH_WORDS_LOWERCASE_COUNT: usize = 4900;
+/// 1% error maximum
+const MAX_ERROR: i64 = TEST_FILE_ENGLISH_WORDS.expected as i64 / 100;
 
 const FILE_HANDLE_BATCH_SIZE: BatchSize = BatchSize::SmallInput;
 
@@ -111,6 +116,26 @@ fn bench_tweaks(c: &mut Criterion) {
         );
     });
 
+    // self-hashing implementation.
+    // This is a sanity check to make sure forcing the API user to do hashing isn't somehow worse than doing it internally.
+    group.bench_function("selfhash", |bencher| {
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |file| {
+                let mut reader = BufReader::new(file);
+                let mut processor = BakedInHashLineCounter::new();
+                reader
+                    .for_byte_line(|line| {
+                        processor.count_line(line);
+                        Ok(true)
+                    })
+                    .unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
+    });
+
     // lossy implementation
     group.bench_function("lossy", |bencher| {
         bencher.iter_batched(
@@ -149,6 +174,28 @@ fn bench_tweaks(c: &mut Criterion) {
                     })
                     .unwrap();
                 assert_eq!(processor.count(), ENGLISH_WORDS_LOWERCASE_COUNT);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
+    });
+
+    // hyperloglog implementation
+    group.bench_function("hll", |bencher| {
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |file| {
+                let mut reader = BufReader::new(file);
+                let hasher = init_hasher_state();
+                let mut processor = HyperLogLog::default();
+                reader
+                    .for_byte_line(|line| {
+                        processor.count_hash(hasher.hash_one(line));
+                        Ok(true)
+                    })
+                    .unwrap();
+                let error =
+                    (processor.count() as i64 - TEST_FILE_ENGLISH_WORDS.expected as i64).abs();
+                assert!(error < MAX_ERROR, "{} was beyond maximum error", error);
             },
             FILE_HANDLE_BATCH_SIZE,
         );

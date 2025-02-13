@@ -65,7 +65,6 @@ impl<C> CountUnique for LosslessHashingLineCounter<C> {
 }
 
 impl CountUniqueLineHash for LosslessHashingLineCounter<()> {
-    #[inline(always)]
     fn count_line(&mut self, line: &[u8], hash: u64, hasher: impl Fn(&[u8]) -> u64) {
         let entry = self.map.entry(
             hash,
@@ -89,7 +88,6 @@ impl<C> CountUniqueLineHash for LosslessHashingLineCounter<C>
 where
     C: Increment,
 {
-    #[inline(always)]
     fn count_line(&mut self, line: &[u8], hash: u64, hasher: impl Fn(&[u8]) -> u64) {
         let entry = self.map.entry(
             hash,
