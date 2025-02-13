@@ -50,7 +50,7 @@ RUSTFLAGS="-C target-cpu=native" cargo +nightly bench -Z build-std=std --no-defa
 You may also want to only bench the library, as the binary benchmarks can be somewhat slow:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo +nightly bench -Z build-std=std --no-default-features --features bench --target=x86_64-pc-windows-msvc --package line_cardinality
+RUSTFLAGS="-C target-cpu=native" cargo +nightly bench -Z build-std=std --target=x86_64-pc-windows-msvc --package line_cardinality
 ```
 
 ## Tests against a large file
