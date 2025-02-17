@@ -2,7 +2,7 @@
 // cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 use std::fs::File;
-use std::io::{self, BufWriter, ErrorKind, IsTerminal, Write};
+use std::io::{BufWriter, ErrorKind, IsTerminal, Write};
 use std::process::ExitCode;
 
 use bstr::ByteSlice;
@@ -11,8 +11,8 @@ use clap::Parser;
 use cfg_if::cfg_if;
 
 use line_cardinality::{
-    CountUnique, Error, ErrorCause, LosslessHashingLineCounter, HyperLogLog, LossyHashingLineCounter,
-    LineCounter, ReportUniqueLineHash,
+    CountUnique, Error, ErrorCause, HyperLogLog, LosslessHashingLineCounter,
+    LossyHashingLineCounter, ReportUniqueLineHash,
 };
 
 #[cfg(feature = "memmap")]
@@ -21,8 +21,8 @@ use line_cardinality::Merge;
 use crate::cli_args::{CliArgs, Mode};
 
 mod cli_args;
-mod io;
 mod hash;
+mod io;
 
 /// constants generated in build.rs
 pub(crate) mod constants {
@@ -67,12 +67,13 @@ fn run_with_const_parameters<const TRIM: bool, const LOWERCASE: bool>(args: CliA
 fn report<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
-            let mut processor = LosslessHashingLineCounter::<Count, _>::with_line_mapper_and_capacity(
-                preprocess_line::<TRIM, LOWERCASE>,
-                args.size.unwrap_or(0),
-            );
+            let mut processor =
+                LosslessHashingLineCounter::<Count, _>::with_line_mapper_and_capacity(
+                    preprocess_line::<TRIM, LOWERCASE>,
+                    args.size.unwrap_or(0),
+                );
             process_input(&args, &mut processor)?;
-            let stdout = io::stdout().lock();
+            let stdout = std::io::stdout().lock();
             let mut writer = BufWriter::new(stdout);
             if args.sort {
                 let mut report = processor.to_report_vec();
@@ -274,7 +275,7 @@ where
     T: CountUnique,
 {
     if !args.no_stdin {
-        let stdin_handle = io::stdin().lock();
+        let stdin_handle = std::io::stdin().lock();
         if !stdin_handle.is_terminal() {
             processor.count_unique_in_read(stdin_handle)?;
         }

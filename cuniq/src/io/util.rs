@@ -4,12 +4,10 @@
 //! Internal utilities used for IO. These are useful, but often unsafe, so I'm not interested in
 //! exporting these for public use outside of this crate.
 
+use super::Result;
 use bstr::io::BufReadExt;
-use cfg_if::cfg_if;
 use line_cardinality::{CountUnique, Error};
 use std::io::BufRead;
-
-type Result<T> = std::result::Result<T, Error>;
 
 /// Count unique lines in a newline-delimited [`BufRead`].
 ///
@@ -56,16 +54,8 @@ pub(crate) fn count_unique_in_read<C: CountUnique, T: BufRead>(
 
 /// Count unique lines in newline-delimited bytes.
 pub(crate) fn count_unique_in_bytes<C: CountUnique>(counter: &C, bytes: &[u8]) {
-    cfg_if! {
-        if #[cfg(feature = "memchr")] {
-            for line in LineIterator::new(bytes) {
-                counter.count_line(line);
-            }
-        } else {
-            counter
-                .count_unique_in_read(bytes)
-                .expect("somehow failed to BufRead bytes from memory!?")
-        }
+    for line in LineIterator::new(bytes) {
+        counter.count_line(line);
     }
 }
 
@@ -105,7 +95,7 @@ impl RawSlice {
 }
 
 /// Extracts approximately `chunk_size`-sized newline-delimited chunks from a `RawSlice`.
-pub(crate) struct ChunkIterator {
+pub(crate) struct RawChunkIterator {
     /// desired chunk size
     chunk_size: usize,
     /// exclusive end ptr for entire range
@@ -116,9 +106,9 @@ pub(crate) struct ChunkIterator {
     chunk_end_ptr: *const u8,
 }
 
-unsafe impl Send for ChunkIterator {}
+unsafe impl Send for RawChunkIterator {}
 
-impl ChunkIterator {
+impl RawChunkIterator {
     #[cfg(feature = "memmap")]
     pub fn from_memmap(mem_map: &memmap2::MmapRaw, chunk_size: usize) -> Self {
         Self::new(mem_map.as_ptr(), mem_map.len(), chunk_size)
@@ -143,7 +133,7 @@ impl ChunkIterator {
     }
 }
 
-impl Iterator for ChunkIterator {
+impl Iterator for RawChunkIterator {
     type Item = RawSlice;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -192,6 +182,76 @@ impl Iterator for ChunkIterator {
 
                 // update start ptr so that the next iteration returns None
                 self.chunk_start_ptr = self.end_ptr;
+
+                Some(chunk)
+            }
+        }
+    }
+}
+
+pub(crate) struct ChunkIterator<'a> {
+    /// desired chunk size
+    chunk_size: usize,
+    /// entire range of data
+    data: &'a [u8],
+    /// inclusive start index for next chunk
+    chunk_start_index: usize,
+    /// desired exclusive end index for next chunk
+    chunk_end_index: usize,
+}
+
+impl<'a> ChunkIterator<'a> {
+    #[cfg(feature = "memmap")]
+    pub fn from_memmap(mem_map: &memmap2::Mmap, chunk_size: usize) -> Self {
+        Self::new(mem_map, chunk_size)
+    }
+
+    pub fn new(data: &'a [u8], chunk_size: usize) -> Self {
+        let chunk_start_index = 0;
+        let chunk_end_index = chunk_size;
+        Self {
+            chunk_size,
+            data,
+            chunk_start_index,
+            chunk_end_index,
+        }
+    }
+}
+
+impl<'a> Iterator for ChunkIterator<'a> {
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.chunk_start_index >= self.data.len() {
+            // edge case: we have ran out of data and are ready to stop iterating
+            None
+        } else if self.chunk_end_index >= self.data.len() {
+            // edge case: end ptr has passed end of mem_map
+            // just use real end and skip the newline search shit
+            let chunk = &self.data[self.chunk_start_index..];
+
+            // update start ptr so that the next iteration returns None
+            self.chunk_start_index = self.data.len();
+
+            Some(chunk)
+        } else {
+            let search_range = &self.data[self.chunk_end_index..];
+            if let Some(newline_index) = memchr::memchr(b'\n', search_range) {
+                let chunk = &self.data[self.chunk_start_index..newline_index];
+
+                // update start of next chunk to be directly after this newline
+                self.chunk_start_index = newline_index + 1;
+
+                // update next of next chunk to be 1 chunk worth of size after the start
+                self.chunk_end_index = self.chunk_start_index + self.chunk_size;
+
+                Some(chunk)
+            } else {
+                // edge case: we couldn't find a newline so this 1-word chunk will be the last thread
+                let chunk = &self.data[self.chunk_start_index..];
+
+                // update start ptr so that the next iteration returns None
+                self.chunk_start_index = self.data.len();
 
                 Some(chunk)
             }
