@@ -61,14 +61,14 @@ jobs:
             artifact-suffix: -mac-x86
             suffix: ''
             path-separator: '/'
-            runner-can-execute: true
+            runner-can-execute: false
           - runs-on: macos-latest
             triple: aarch64-apple-darwin
             build-name: macOS ARM
             artifact-suffix: -mac-arm
             suffix: ''
             path-separator: '/'
-            runner-can-execute: false
+            runner-can-execute: true
       fail-fast: false
     name: Build ${{ matrix.target.build-name }}
     runs-on: ${{ matrix.target.runs-on }}
