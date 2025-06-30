@@ -1,4 +1,4 @@
-# This file is part of cuniq. Copyright © 2024 cuniq contributors.
+# This file is part of cuniq. Copyright © 2024-2025 cuniq contributors.
 # cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 name: Publish
@@ -25,6 +25,8 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Update Rust Toolchain
+        run: rustup update
       - name: Publish line_cardinality
         run: cargo publish --package line_cardinality --all-features
         env:
