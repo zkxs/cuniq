@@ -27,6 +27,6 @@ debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output s
 
 [workspace.dependencies]
 cfg-if = "1"
-criterion = "0.5"
+criterion = "0.6"
 memmap2 = "0.9"
 bstr = "1"
