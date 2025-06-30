@@ -10,17 +10,10 @@ use ahash::RandomState;
 use bstr::ByteSlice;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
-use line_cardinality::{
-    CountUnique, CountUniqueFromMemmapFile, CountUniqueFromReadFile, LineCounter,
-};
+use line_cardinality::{CountUnique, CountUniqueFromMemmapFile, CountUniqueFromReadFile, LineCounter};
 
 // require certain features for this benchmark
-#[cfg(not(all(
-    feature = "ahash",
-    feature = "memmap",
-    feature = "memchr",
-    feature = "file"
-)))]
+#[cfg(not(all(feature = "ahash", feature = "memmap", feature = "memchr", feature = "file")))]
 compile_error!("missing required features");
 
 criterion_group!(benches, bench_small, bench_large, bench_tweaks);

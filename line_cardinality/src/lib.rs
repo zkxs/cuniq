@@ -20,9 +20,7 @@ use cfg_if::cfg_if;
 pub use count_unique_impl::file_io::memmap::CountUniqueFromMemmapFile;
 #[cfg(feature = "file")]
 pub use count_unique_impl::file_io::read::CountUniqueFromReadFile;
-pub use count_unique_impl::hashing::{
-    HashingLineCounter, HashingLineCounterIntoIter, HashingLineCounterIter,
-};
+pub use count_unique_impl::hashing::{HashingLineCounter, HashingLineCounterIntoIter, HashingLineCounterIter};
 #[cfg(feature = "hash-only")]
 pub use count_unique_impl::hashing_inexact::InexactHashingLineCounter;
 pub use count_unique_impl::hyperloglog::HyperLogLog;

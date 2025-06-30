@@ -30,8 +30,7 @@ where
     }
 
     fn count_unique_in_memmap_file(&mut self, file: &File) -> Result {
-        let mem_map =
-            unsafe { Mmap::map(file) }.map_err(|e| Error::io_static("failed to memmap file", e))?;
+        let mem_map = unsafe { Mmap::map(file) }.map_err(|e| Error::io_static("failed to memmap file", e))?;
 
         //TODO: we need to *not* Advice::Sequential if we ever get a parallel counting implementation
         #[cfg(unix)]

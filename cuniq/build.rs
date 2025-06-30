@@ -11,10 +11,7 @@ fn main() -> io::Result<()> {
     let out_dir: PathBuf = env::var("OUT_DIR").expect("bad out dir?").into();
     let constants_path = out_dir.join("constants.rs");
     create_constants(constants_path.as_path())?;
-    println!(
-        "cargo:rustc-env=CONSTANTS_PATH={}",
-        constants_path.to_str().unwrap()
-    );
+    println!("cargo:rustc-env=CONSTANTS_PATH={}", constants_path.to_str().unwrap());
     Ok(())
 }
 
@@ -28,9 +25,7 @@ fn create_constants<P: AsRef<Path>>(path: P) -> io::Result<()> {
     writer.write_fmt(format_args!(
         "pub const GIT_COMMIT_HASH: &str = \"{git_commit_hash}\";\n"
     ))?;
-    writer.write_fmt(format_args!(
-        "pub const CLAP_VERSION: &str = \"{clap_version}\";\n"
-    ))?;
+    writer.write_fmt(format_args!("pub const CLAP_VERSION: &str = \"{clap_version}\";\n"))?;
     writer.flush()
 }
 
@@ -49,8 +44,7 @@ fn git_commit_hash() -> String {
         .args(["rev-parse", "HEAD"])
         .output()
         .expect("failed to get git commit hash");
-    let untrimmed_git_commit_hash =
-        String::from_utf8(output.stdout).expect("failed to read git commit hash as UTF-8");
+    let untrimmed_git_commit_hash = String::from_utf8(output.stdout).expect("failed to read git commit hash as UTF-8");
     untrimmed_git_commit_hash.trim().to_string()
 }
 

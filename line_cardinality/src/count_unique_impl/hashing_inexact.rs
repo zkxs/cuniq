@@ -102,9 +102,7 @@ impl<M> InexactHashingLineCounter<M> {
 impl CountUnique for InexactHashingLineCounter<()> {
     fn count_line(&mut self, line: &[u8]) {
         let hash = self.random_state.hash_one(line);
-        let entry = self
-            .map
-            .entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
+        let entry = self.map.entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
         entry.or_insert_with(|| {
             self.count += 1;
             hash
@@ -127,9 +125,7 @@ where
     fn count_line(&mut self, line: &[u8]) {
         let line = (self.line_mapper)(line, &mut self.string_buffer);
         let hash = self.random_state.hash_one(line);
-        let entry = self
-            .map
-            .entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
+        let entry = self.map.entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
         entry.or_insert_with(|| {
             self.count += 1;
             hash
