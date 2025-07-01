@@ -9,9 +9,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "prerelease"
+    open-pull-requests-limit: 15
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "prerelease"
