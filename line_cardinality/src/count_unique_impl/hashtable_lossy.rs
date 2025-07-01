@@ -61,9 +61,7 @@ impl CountUnique for LossyHashingLineCounter {
 
 impl CountUniqueHash for LossyHashingLineCounter {
     fn count_hash(&mut self, hash: u64) {
-        let entry = self
-            .map
-            .entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
+        let entry = self.map.entry(hash, |found_hash| *found_hash == hash, |rehash| *rehash);
         entry.or_insert_with(|| {
             self.count += 1;
             hash

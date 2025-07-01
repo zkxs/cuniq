@@ -14,8 +14,7 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 use crate::baked_in_hash::BakedInHashLineCounter;
 use line_cardinality::{
-    CountUnique, CountUniqueHash, CountUniqueLineHash, HyperLogLog, LosslessHashingLineCounter,
-    LossyHashingLineCounter,
+    CountUnique, CountUniqueHash, CountUniqueLineHash, HyperLogLog, LosslessHashingLineCounter, LossyHashingLineCounter,
 };
 
 criterion_group!(benches, bench_tweaks);
@@ -80,8 +79,7 @@ fn bench_tweaks(c: &mut Criterion) {
                 let mut processor = LosslessHashingLineCounter::<()>::default();
                 reader
                     .for_byte_line(|line| {
-                        processor
-                            .count_line(line, hasher.hash_one(line), |line| hasher.hash_one(line));
+                        processor.count_line(line, hasher.hash_one(line), |line| hasher.hash_one(line));
                         Ok(true)
                     })
                     .unwrap();
@@ -104,9 +102,7 @@ fn bench_tweaks(c: &mut Criterion) {
                     .for_byte_line(|line| {
                         buffer.clear();
                         line.to_lowercase_into(&mut buffer);
-                        processor.count_line(&buffer, hasher.hash_one(&buffer), |line| {
-                            hasher.hash_one(line)
-                        });
+                        processor.count_line(&buffer, hasher.hash_one(&buffer), |line| hasher.hash_one(line));
                         Ok(true)
                     })
                     .unwrap();
@@ -193,8 +189,7 @@ fn bench_tweaks(c: &mut Criterion) {
                         Ok(true)
                     })
                     .unwrap();
-                let error =
-                    (processor.count() as i64 - TEST_FILE_ENGLISH_WORDS.expected as i64).abs();
+                let error = (processor.count() as i64 - TEST_FILE_ENGLISH_WORDS.expected as i64).abs();
                 assert!(error < MAX_ERROR, "{} was beyond maximum error", error);
             },
             FILE_HANDLE_BATCH_SIZE,

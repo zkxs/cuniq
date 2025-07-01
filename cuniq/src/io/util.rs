@@ -40,10 +40,7 @@ use std::io::BufRead;
 /// // we didn't send anything over stdin
 /// assert_eq!(line_counter.count(), 0);
 /// ```
-pub(crate) fn count_unique_in_read<C: CountUnique, T: BufRead>(
-    counter: &C,
-    mut reader: T,
-) -> Result<()> {
+pub(crate) fn count_unique_in_read<C: CountUnique, T: BufRead>(counter: &C, mut reader: T) -> Result<()> {
     reader
         .for_byte_line(|line| {
             counter.count_line(line);
@@ -177,8 +174,7 @@ impl Iterator for RawChunkIterator {
             } else {
                 // edge case: we couldn't find a newline so this 1-word chunk will be the last thread
                 // equivalent to  `chunk = &mem_map[chunk_start_index_inclusive..]`
-                let chunk =
-                    unsafe { RawSlice::from_ptr_range(self.chunk_start_ptr, self.chunk_end_ptr) };
+                let chunk = unsafe { RawSlice::from_ptr_range(self.chunk_start_ptr, self.chunk_end_ptr) };
 
                 // update start ptr so that the next iteration returns None
                 self.chunk_start_ptr = self.end_ptr;
@@ -272,11 +268,7 @@ impl<'a> LineIterator<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
         let start = 0;
         let memchr = memchr::memchr_iter(b'\n', bytes);
-        Self {
-            bytes,
-            start,
-            memchr,
-        }
+        Self { bytes, start, memchr }
     }
 }
 

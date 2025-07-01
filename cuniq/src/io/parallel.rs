@@ -110,11 +110,7 @@ where
 }
 
 /// Count unique lines in some newline-delimited files in parallel.
-pub(crate) fn parallel_count_unique_in_memmap_files<T>(
-    &mut counter: T,
-    files: &[File],
-    threads: usize,
-) -> Result<()>
+pub(crate) fn parallel_count_unique_in_memmap_files<T>(&mut counter: T, files: &[File], threads: usize) -> Result<()>
 where
     T: Merge,
 {
@@ -130,9 +126,9 @@ where
             #[cfg(unix)]
             {
                 use memmap2::Advice;
-                mem_map.advise(Advice::WillNeed).map_err(|e| {
-                    Error::io_static("failed to set memmap file to WillNeed mode", e)
-                })?;
+                mem_map
+                    .advise(Advice::WillNeed)
+                    .map_err(|e| Error::io_static("failed to set memmap file to WillNeed mode", e))?;
             }
 
             mem_maps.push(mem_map);
@@ -186,11 +182,7 @@ where
 }
 
 /// Count unique lines in a newline-delimited file in parallel.
-pub(crate) fn parallel_count_unique_in_memmap_file<T>(
-    &mut counter: T,
-    file: &File,
-    threads: usize,
-) -> Result<()>
+pub(crate) fn parallel_count_unique_in_memmap_file<T>(&mut counter: T, file: &File, threads: usize) -> Result<()>
 where
     T: Merge,
 {

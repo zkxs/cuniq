@@ -46,21 +46,14 @@ fn check_size(size: usize) -> Result<SizeInfo, Error> {
         ))
     } else if size > MAX_SIZE {
         Err(Error::hyper_log_log(
-            format!(
-                "HyperLogLog size must be at most {}, but was {}",
-                MAX_SIZE, size
-            ),
+            format!("HyperLogLog size must be at most {}, but was {}", MAX_SIZE, size),
             size,
         ))
     } else {
         let bits = size.ilog2();
         let shift_bits: u32 = Hash::BITS - bits;
         let mask: Hash = 0xFFFFFFFFFFFFFFFF >> bits;
-        Ok(SizeInfo {
-            bits,
-            shift_bits,
-            mask,
-        })
+        Ok(SizeInfo { bits, shift_bits, mask })
     }
 }
 
@@ -85,11 +78,7 @@ impl HyperLogLog {
 
     /// Creates a new [`HyperLogLog`] with `size` bytes of memory used to store state.
     pub fn with_capacity(size: usize) -> Result<Self, Error> {
-        let SizeInfo {
-            bits,
-            shift_bits,
-            mask,
-        } = check_size(size)?;
+        let SizeInfo { bits, shift_bits, mask } = check_size(size)?;
         Ok(HyperLogLog {
             size,
             bits,
@@ -125,11 +114,7 @@ impl HyperLogLog {
     }
 
     fn count(&self) -> usize {
-        let sum: f64 = self
-            .counters
-            .iter()
-            .map(|value| 2f64.powf(-(*value as f64)))
-            .sum();
+        let sum: f64 = self.counters.iter().map(|value| 2f64.powf(-(*value as f64))).sum();
         let sum = 1.0 / sum;
         let size_float = self.size as f64;
         let count: f64 = self.magic_bias_constant() * size_float * size_float * sum;
@@ -219,15 +204,11 @@ mod test {
     #[test]
     fn test_left_bits() {
         assert_eq!(
-            HyperLogLog::with_capacity(16)
-                .unwrap()
-                .left_bits(0x5FFFFFFFFFFFFFFF),
+            HyperLogLog::with_capacity(16).unwrap().left_bits(0x5FFFFFFFFFFFFFFF),
             0x05
         );
         assert_eq!(
-            HyperLogLog::with_capacity(256)
-                .unwrap()
-                .left_bits(0x05FFFFFFFFFFFFFF),
+            HyperLogLog::with_capacity(256).unwrap().left_bits(0x05FFFFFFFFFFFFFF),
             0x05
         );
     }
@@ -235,15 +216,11 @@ mod test {
     #[test]
     fn test_right_bits() {
         assert_eq!(
-            HyperLogLog::with_capacity(16)
-                .unwrap()
-                .right_bits(0xF876543210EDCBA9),
+            HyperLogLog::with_capacity(16).unwrap().right_bits(0xF876543210EDCBA9),
             0x0876543210EDCBA9
         );
         assert_eq!(
-            HyperLogLog::with_capacity(256)
-                .unwrap()
-                .right_bits(0xFF76543210EDCBA9),
+            HyperLogLog::with_capacity(256).unwrap().right_bits(0xFF76543210EDCBA9),
             0x0076543210EDCBA9
         );
     }

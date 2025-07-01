@@ -11,8 +11,8 @@ use clap::Parser;
 use cfg_if::cfg_if;
 
 use line_cardinality::{
-    CountUnique, Error, ErrorCause, HyperLogLog, LosslessHashingLineCounter,
-    LossyHashingLineCounter, ReportUniqueLineHash,
+    CountUnique, Error, ErrorCause, HyperLogLog, LosslessHashingLineCounter, LossyHashingLineCounter,
+    ReportUniqueLineHash,
 };
 
 #[cfg(feature = "memmap")]
@@ -67,11 +67,10 @@ fn run_with_const_parameters<const TRIM: bool, const LOWERCASE: bool>(args: CliA
 fn report<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
-            let mut processor =
-                LosslessHashingLineCounter::<Count, _>::with_line_mapper_and_capacity(
-                    preprocess_line::<TRIM, LOWERCASE>,
-                    args.size.unwrap_or(0),
-                );
+            let mut processor = LosslessHashingLineCounter::<Count, _>::with_line_mapper_and_capacity(
+                preprocess_line::<TRIM, LOWERCASE>,
+                args.size.unwrap_or(0),
+            );
             process_input(&args, &mut processor)?;
             let stdout = std::io::stdout().lock();
             let mut writer = BufWriter::new(stdout);
@@ -81,17 +80,13 @@ fn report<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), 
                 for (line, count) in report.iter() {
                     write_line(&mut writer, line, count)?;
                 }
-                writer
-                    .flush()
-                    .map_err(|e| Error::io_static(STDOUT_ERROR_MESSAGE, e))?;
+                writer.flush().map_err(|e| Error::io_static(STDOUT_ERROR_MESSAGE, e))?;
                 std::mem::forget(report); // same explanation as below
             } else {
                 for (line, count) in &processor {
                     write_line(&mut writer, line, count)?;
                 }
-                writer
-                    .flush()
-                    .map_err(|e| Error::io_static(STDOUT_ERROR_MESSAGE, e))?;
+                writer.flush().map_err(|e| Error::io_static(STDOUT_ERROR_MESSAGE, e))?;
 
                 // leak the hash map and prevent Drop (and its destructor) from being run.
                 // This is useful because cleaning up the hash set takes a significant amount of time, and the
@@ -119,10 +114,8 @@ fn write_line<T: Write>(writer: &mut T, line: &[u8], count: &Count) -> Result<()
 fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
-            let mut processor = LineCounter::with_line_mapper_and_capacity(
-                preprocess_line::<TRIM, LOWERCASE>,
-                args.size.unwrap_or(0),
-            );
+            let mut processor =
+                LineCounter::with_line_mapper_and_capacity(preprocess_line::<TRIM, LOWERCASE>, args.size.unwrap_or(0));
             process_input(&args, &mut processor)?;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
@@ -153,10 +146,7 @@ fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), E
             let mut processor = if let Some(size) = args.size {
                 let size = usize::max(16, size); // make size at least 16
                 let size = previous_power_of_2(size); // reduce size to nearest power of 2
-                HyperLogLog::with_line_mapper_and_capacity(
-                    preprocess_line::<TRIM, LOWERCASE>,
-                    size,
-                )?
+                HyperLogLog::with_line_mapper_and_capacity(preprocess_line::<TRIM, LOWERCASE>, size)?
             } else {
                 HyperLogLog::with_line_mapper(preprocess_line::<TRIM, LOWERCASE>)
             };
@@ -181,19 +171,14 @@ fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), E
 }
 
 #[cfg(feature = "memmap")]
-fn parallel_chunked_process_input<T>(
-    args: &CliArgs,
-    processor: &mut T,
-    threads: usize,
-) -> Result<(), Error>
+fn parallel_chunked_process_input<T>(args: &CliArgs, processor: &mut T, threads: usize) -> Result<(), Error>
 where
     T: line_cardinality::CountUniqueFromMemmapFile + line_cardinality::CountUniqueHash,
 {
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
     for path in &args.files {
-        let file = File::open(path)
-            .map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
+        let file = File::open(path).map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
         files.push(file);
     }
 
@@ -211,8 +196,7 @@ where
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
     for path in &args.files {
-        let file = File::open(path)
-            .map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
+        let file = File::open(path).map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
         files.push(file);
     }
 
@@ -229,8 +213,7 @@ where
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
     for path in &args.files {
-        let file = File::open(path)
-            .map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
+        let file = File::open(path).map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
         files.push(file);
     }
 
@@ -284,10 +267,7 @@ where
 }
 
 #[inline(always)]
-fn preprocess_line<'a, const TRIM: bool, const LOWERCASE: bool>(
-    line: &'a [u8],
-    buffer: &'a mut Vec<u8>,
-) -> &'a [u8] {
+fn preprocess_line<'a, const TRIM: bool, const LOWERCASE: bool>(line: &'a [u8], buffer: &'a mut Vec<u8>) -> &'a [u8] {
     let trimmed = if TRIM { line.trim() } else { line };
     if LOWERCASE {
         buffer.clear();
@@ -335,10 +315,6 @@ mod test {
         assert_eq!(previous_power_of_2(65535), 32768, "case 65535");
         assert_eq!(previous_power_of_2(65536), 65536, "case 65536");
         assert_eq!(previous_power_of_2(65537), 65536, "case 65537");
-        assert_eq!(
-            previous_power_of_2(usize::MAX),
-            1usize.rotate_right(1),
-            "case max"
-        );
+        assert_eq!(previous_power_of_2(usize::MAX), 1usize.rotate_right(1), "case max");
     }
 }

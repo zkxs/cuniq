@@ -3,7 +3,6 @@
 
 //! This module contains the implementations and other internals for line_cardinality
 
-
 pub(crate) mod hashtable_lossless;
 pub(crate) mod hashtable_lossy;
 pub(crate) mod hyperloglog;

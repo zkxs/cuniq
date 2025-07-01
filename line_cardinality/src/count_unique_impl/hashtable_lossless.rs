@@ -97,15 +97,13 @@ where
                 hasher(slice)
             },
         );
-        entry
-            .and_modify(|entry| entry.counter.increment())
-            .or_insert_with(|| {
-                self.count += 1;
-                Entry {
-                    line: line.to_vec().into_boxed_slice(),
-                    counter: C::new(),
-                }
-            });
+        entry.and_modify(|entry| entry.counter.increment()).or_insert_with(|| {
+            self.count += 1;
+            Entry {
+                line: line.to_vec().into_boxed_slice(),
+                counter: C::new(),
+            }
+        });
     }
 }
 
@@ -131,9 +129,7 @@ where
     C: Increment,
 {
     fn for_each_report_entry<F: FnMut(&[u8], C)>(&self, mut f: F) {
-        self.map
-            .iter()
-            .for_each(|entry| f(&entry.line, entry.counter));
+        self.map.iter().for_each(|entry| f(&entry.line, entry.counter));
     }
 
     fn to_report_vec(self) -> Vec<(Vec<u8>, C)> {
@@ -150,9 +146,7 @@ where
     }
 
     fn iter(&self) -> HashingLineCounterIter<C> {
-        HashingLineCounterIter {
-            inner: self.map.iter(),
-        }
+        HashingLineCounterIter { inner: self.map.iter() }
     }
 
     fn into_iter(self) -> HashingLineCounterIntoIter<C> {
@@ -167,9 +161,7 @@ impl<'a, C> IntoIterator for &'a LosslessHashingLineCounter<C> {
     type IntoIter = HashingLineCounterIter<'a, C>;
 
     fn into_iter(self) -> Self::IntoIter {
-        HashingLineCounterIter {
-            inner: self.map.iter(),
-        }
+        HashingLineCounterIter { inner: self.map.iter() }
     }
 }
 
@@ -186,9 +178,7 @@ impl<'a, C> Iterator for HashingLineCounterIter<'a, C> {
     type Item = (&'a [u8], &'a C);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next()
-            .map(|entry| (entry.line.deref(), &entry.counter))
+        self.inner.next().map(|entry| (entry.line.deref(), &entry.counter))
     }
 }
 
@@ -205,8 +195,6 @@ impl<C> Iterator for HashingLineCounterIntoIter<C> {
     type Item = (Vec<u8>, C);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next()
-            .map(|entry| (entry.line.into_vec(), entry.counter))
+        self.inner.next().map(|entry| (entry.line.into_vec(), entry.counter))
     }
 }
