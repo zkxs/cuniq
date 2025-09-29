@@ -33,11 +33,11 @@ memmap2 = { workspace = true, optional = true }
 # Ability to read data from &[u8]
 memchr = { version = "2", optional = true }
 bstr.workspace = true
-hashbrown = { version = "0.15", default-features = false }
+hashbrown = { version = "0.16", default-features = false }
 
 [dev-dependencies]
 criterion.workspace = true
-hashbrown = { version = "0.15", features = ["raw-entry"], default-features = false }
+hashbrown = { version = "0.16", features = ["raw-entry"], default-features = false }
 
 [[bench]]
 name = "benches"
