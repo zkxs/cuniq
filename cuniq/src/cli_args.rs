@@ -77,7 +77,7 @@ pub(crate) enum Mode {
     /// Uses the HyperLogLog algorithm to estimate cardinality with fixed memory.
     /// Use the `--size` flag to specify the number of 1-byte registers to use. More registers will
     /// increase estimate accuracy. By default, 65536 is used. This mode is not compatible with
-    /// `--report`. This is the only mode that supports multi-threading with `--threads`.
+    /// `--report`.
     Estimate,
 }
 

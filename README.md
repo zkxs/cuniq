@@ -79,16 +79,8 @@ Options:
   -s, --sort
           Sort report output alphabetically by line. Has no effect unless used with `--report`
 
-  -t, --trim
-          Remove leading and trailing whitespace from input
-
-  -l, --lower
-          Convert input to lowercase
-
   -m, --mode <MODE>
           Sets the algorithm used to count (or estimate) cardinality
-
-          [default: exact]
 
           Possible values:
           - exact:      Uses a hash table to exactly count cardinality. The size of the hash table is proportional to
@@ -103,16 +95,16 @@ Options:
             Avoid setting `--size` for small datasets. This mode is not compatible with `--report`
           - estimate:   Uses the HyperLogLog algorithm to estimate cardinality with fixed memory. Use the `--size` flag
             to specify the number of 1-byte registers to use. More registers will increase estimate accuracy. By
-            default, 65536 is used. This mode is not compatible with `--report`. This is the only mode that supports
-            multi-threading with `--threads`
+            default, 65536 is used. This mode is not compatible with `--report`
+
+          [default: exact]
 
   -n, --size <SIZE>
           Set the size used by the selected counting mode. See the `--mode` documentation for how this affects each
           counting mode
 
       --threads <THREADS>
-          Set the number of threads used to perform the count. By default, the number of logical cores is used. Not all
-          counting modes support parallelism: currently only `--mode=estimate` is compatible
+          Set the number of threads used to perform the count. By default, the number of logical cores is used
 
       --no-stdin
           Disable checking stdin for input. May yield a small performance improvement when only reading input from files
