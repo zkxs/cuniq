@@ -60,7 +60,18 @@ fn report(args: CliArgs) -> Result<(), Error> {
         Mode::Exact => {
             let processor = LosslessHashingLineCounter::<Count>::with_capacity(args.size.unwrap_or(0));
             let mut processor = ByLine(processor);
-            process_input(&args, &mut processor)?;
+            cfg_if! {
+                if #[cfg(feature = "parallel")] {
+                    let threads = args.threads.unwrap_or_else(num_cpus::get);
+                    if threads > 1 {
+                        parallel_process_input(&args, &mut processor, threads)?;
+                    } else {
+                        process_input(&args, &mut processor)?;
+                    }
+                } else {
+                    process_input(&args, &mut processor)?;
+                }
+            }
             let processor = processor.0;
             let stdout = std::io::stdout().lock();
             let mut writer = BufWriter::new(stdout);
@@ -106,7 +117,18 @@ fn count(args: CliArgs) -> Result<(), Error> {
         Mode::Exact => {
             let processor = LosslessHashingLineCounter::<()>::with_capacity(args.size.unwrap_or(0));
             let mut processor = ByLine(processor);
-            process_input(&args, &mut processor)?;
+            cfg_if! {
+                if #[cfg(feature = "parallel")] {
+                    let threads = args.threads.unwrap_or_else(num_cpus::get);
+                    if threads > 1 {
+                        parallel_process_input(&args, &mut processor, threads)?;
+                    } else {
+                        process_input(&args, &mut processor)?;
+                    }
+                } else {
+                    process_input(&args, &mut processor)?;
+                }
+            }
             let processor = processor.0;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
@@ -115,18 +137,12 @@ fn count(args: CliArgs) -> Result<(), Error> {
             let processor = LossyHashingLineCounter::with_capacity(args.size.unwrap_or(0));
             let mut processor = ByHash(processor);
             cfg_if! {
-                if #[cfg(feature = "memmap")] {
-                    cfg_if! {
-                        if #[cfg(feature = "parallel")] {
-                            let threads = args.threads.unwrap_or_else(num_cpus::get);
-                            if threads > 1 {
-                                parallel_process_input(&args, &mut processor, threads)?;
-                            } else {
-                                process_input(&args, &mut processor)?;
-                            }
-                        } else {
-                            process_input(&args, &mut processor)?;
-                        }
+                if #[cfg(feature = "parallel")] {
+                    let threads = args.threads.unwrap_or_else(num_cpus::get);
+                    if threads > 1 {
+                        parallel_process_input(&args, &mut processor, threads)?;
+                    } else {
+                        process_input(&args, &mut processor)?;
                     }
                 } else {
                     process_input(&args, &mut processor)?;
@@ -146,18 +162,12 @@ fn count(args: CliArgs) -> Result<(), Error> {
             };
             let mut processor = ByMerge(processor);
             cfg_if! {
-                if #[cfg(feature = "memmap")] {
-                    cfg_if! {
-                        if #[cfg(feature = "parallel")] {
-                            let threads = args.threads.unwrap_or_else(num_cpus::get);
-                            if threads > 1 {
-                                parallel_process_input(&args, &mut processor, threads)?;
-                            } else {
-                                process_input(&args, &mut processor)?;
-                            }
-                        } else {
-                            process_input(&args, &mut processor)?;
-                        }
+                if #[cfg(feature = "parallel")] {
+                    let threads = args.threads.unwrap_or_else(num_cpus::get);
+                    if threads > 1 {
+                        parallel_process_input(&args, &mut processor, threads)?;
+                    } else {
+                        process_input(&args, &mut processor)?;
                     }
                 } else {
                     process_input(&args, &mut processor)?;

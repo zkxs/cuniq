@@ -36,7 +36,6 @@ pub(crate) struct CliArgs {
 
     /// Set the number of threads used to perform the count. By default, the number of logical cores
     /// is used.
-    /// Not all counting modes support parallelism: currently only `--mode=estimate` is compatible.
     #[arg(long)]
     pub(crate) threads: Option<usize>,
 
