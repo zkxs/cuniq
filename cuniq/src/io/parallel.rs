@@ -5,7 +5,7 @@
 //!
 //! Optional feature if `parallel` is enabled, which also guarantees `memmap2` and `crossbeam-channel`
 
-use super::util::{RawChunkIterator, RawSlice};
+use super::util::{ChunkIterator, RawChunkIterator, RawSlice};
 use super::Result;
 use crate::hash::init_hasher_state;
 use line_cardinality::{CountUniqueHash, Error, Merge};
@@ -14,8 +14,12 @@ use std::fs::File;
 
 const DEFAULT_CHUNK_SIZE: usize = 0x1 << 27; // 2^27 == 134217728 bytes == 128 MiB
 
-/// Provides capability to read data from newline-delimited memory-mapped files in parallel
-pub(crate) fn parallel_chunked_count_unique_in_memmap_files<T>(
+/// Count unique lines in some newline-delimited files in parallel.
+///
+/// This approach does not require [`Merge`] but does require [`CountUniqueHash`], which means the worker threads can
+/// only hash and counting must be done from a single thread. n worker threads are created and sent chunks from the
+/// file. The workers hash lines in these chunks and then send them on to the counting thread.
+pub(crate) fn parallel_count_hash<T>(
     &mut counter: T,
     files: &[File],
     threads: usize,
@@ -112,12 +116,15 @@ where
 }
 
 /// Count unique lines in some newline-delimited files in parallel.
-pub(crate) fn parallel_count_unique_in_memmap_files<T>(&mut counter: T, files: &[File], threads: usize) -> Result<()>
+///
+/// This approach requires [`Merge`] and works by spawning n worker threads which are sent chunks from the files. Once
+/// all chunks are processed, the results are merged.
+pub(crate) fn parallel_count_merge<T>(&mut counter: T, files: &[File], threads: usize) -> Result<()>
 where
     T: Merge,
 {
     if files.len() == 1 {
-        counter.parallel_count_unique_in_memmap_file(&files[0], threads)
+        parallel_count_merge_single_file(counter, &files[0], threads)
     } else {
         let mut mem_maps = Vec::with_capacity(files.len());
         for file in files {
@@ -183,14 +190,20 @@ where
     }
 }
 
-/// Count unique lines in a newline-delimited file in parallel.
-pub(crate) fn parallel_count_unique_in_memmap_file<T>(&mut counter: T, file: &File, threads: usize) -> Result<()>
+/// Count unique lines in a single newline-delimited file in parallel.
+///
+/// This approach requires [`Merge`] and works by splitting the file into roughly equal chunks. Each chunk is processed
+/// in its own thread. Once all chunks are done, the results are merged.
+fn parallel_count_merge_single_file<T>(&mut counter: T, file: &File, threads: usize) -> Result<()>
 where
     T: Merge,
 {
-    let mem_map = MmapOptions::new()
-        .map_raw_read_only(file)
-        .map_err(|e| Error::io_static("failed to memmap file", e))?;
+    // SAFETY: dealing with external file modification is out of scope
+    let mem_map = unsafe {
+        MmapOptions::new()
+        .map(file)
+        .map_err(|e| Error::io_static("failed to memmap file", e))?
+    };
 
     #[cfg(unix)]
     {
@@ -201,13 +214,13 @@ where
     }
 
     let chunk_size = mem_map.len() / threads;
-    let chunk_iter = RawChunkIterator::from_memmap(&mem_map, chunk_size);
+    let chunk_iter = ChunkIterator::from_memmap(&mem_map, chunk_size);
     let join_handles = chunk_iter
         .map(|chunk| {
             // spawn the thread
             let mut counter = counter.clone();
             std::thread::spawn(move || {
-                counter.count_unique_in_bytes(chunk.as_slice());
+                counter.count_unique_in_bytes(chunk);
                 counter
             })
         })
