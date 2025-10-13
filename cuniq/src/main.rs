@@ -5,7 +5,6 @@ use std::fs::File;
 use std::io::{BufWriter, ErrorKind, IsTerminal, Write};
 use std::process::ExitCode;
 
-use bstr::ByteSlice;
 use clap::Parser;
 
 use cfg_if::cfg_if;
@@ -16,6 +15,12 @@ use line_cardinality::{
 };
 
 use crate::cli_args::{CliArgs, Mode};
+use crate::io::buf::CountBuf;
+use crate::io::{ByHash, ByLine, ByMerge};
+use crate::io::read::CountRead;
+
+#[cfg(feature = "parallel")]
+use crate::io::parallel::CountParallel;
 
 mod cli_args;
 mod hash;
@@ -33,11 +38,7 @@ static STDOUT_ERROR_MESSAGE: &str = "failed to write to stdout";
 
 fn main() -> ExitCode {
     let args = CliArgs::parse();
-    let result = if args.report {
-        report(args)
-    } else {
-        count(args)
-    };
+    let result = if args.report { report(args) } else { count(args) };
     if let Err(e) = result {
         match e.get_cause() {
             ErrorCause::Io(cause) => match cause.kind() {
@@ -55,10 +56,10 @@ fn main() -> ExitCode {
 fn report(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
-            let mut processor = LosslessHashingLineCounter::<Count>::with_capacity(
-                args.size.unwrap_or(0),
-            );
+            let processor = LosslessHashingLineCounter::<Count>::with_capacity(args.size.unwrap_or(0));
+            let mut processor = ByLine(processor);
             process_input(&args, &mut processor)?;
+            let processor = processor.0;
             let stdout = std::io::stdout().lock();
             let mut writer = BufWriter::new(stdout);
             if args.sort {
@@ -101,42 +102,16 @@ fn write_line<T: Write>(writer: &mut T, line: &[u8], count: &Count) -> Result<()
 fn count(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
-            let mut processor =
-                LosslessHashingLineCounter::with_capacity(args.size.unwrap_or(0));
+            let processor = LosslessHashingLineCounter::<()>::with_capacity(args.size.unwrap_or(0));
+            let mut processor = ByLine(processor);
             process_input(&args, &mut processor)?;
+            let processor = processor.0;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
         }
         Mode::NearExact => {
-            let mut processor = LossyHashingLineCounter::with_capacity(
-                args.size.unwrap_or(0),
-            );
-
-            cfg_if! {
-                if #[cfg(feature = "memmap")] {
-                    let threads = args.threads.unwrap_or_else(num_cpus::get);
-                    if threads > 1 {
-                        parallel_chunked_process_input(&args, &mut processor, threads)?;
-                    } else {
-                        process_input(&args, &mut processor)?;
-                    }
-                } else {
-                    process_input(&args, &mut processor)?;
-                }
-            }
-
-            println!("{}", processor.count());
-            std::mem::forget(processor); // same explanation as above
-        }
-        Mode::Estimate => {
-            let mut processor = if let Some(size) = args.size {
-                let size = usize::max(16, size); // make size at least 16
-                let size = previous_power_of_2(size); // reduce size to nearest power of 2
-                HyperLogLog::with_capacity(size)?
-            } else {
-                HyperLogLog::new()
-            };
-
+            let processor = LossyHashingLineCounter::with_capacity(args.size.unwrap_or(0));
+            let mut processor = ByHash(processor);
             cfg_if! {
                 if #[cfg(feature = "memmap")] {
                     let threads = args.threads.unwrap_or_else(num_cpus::get);
@@ -149,6 +124,32 @@ fn count(args: CliArgs) -> Result<(), Error> {
                     process_input(&args, &mut processor)?;
                 }
             }
+            let processor = processor.0;
+            println!("{}", processor.count());
+            std::mem::forget(processor); // same explanation as above
+        }
+        Mode::Estimate => {
+            let processor = if let Some(size) = args.size {
+                let size = usize::max(16, size); // make size at least 16
+                let size = previous_power_of_2(size); // reduce size to nearest power of 2
+                HyperLogLog::with_capacity(size)?
+            } else {
+                HyperLogLog::new()
+            };
+            let mut processor = ByMerge(processor);
+            cfg_if! {
+                if #[cfg(feature = "memmap")] {
+                    let threads = args.threads.unwrap_or_else(num_cpus::get);
+                    if threads > 1 {
+                        parallel_process_input(&args, &mut processor, threads)?;
+                    } else {
+                        process_input(&args, &mut processor)?;
+                    }
+                } else {
+                    process_input(&args, &mut processor)?;
+                }
+            }
+            let processor = processor.0;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
         }
@@ -159,7 +160,7 @@ fn count(args: CliArgs) -> Result<(), Error> {
 #[cfg(feature = "parallel")]
 fn parallel_process_input<T>(args: &CliArgs, processor: &mut T, threads: usize) -> Result<(), Error>
 where
-    T: line_cardinality::CountUniqueHash,
+    T: CountParallel,
 {
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
@@ -170,13 +171,12 @@ where
 
     process_stdin(args, processor)?;
 
-    use line_cardinality::ParallelCountUniqueFromMemmapFile;
-    processor.parallel_count_unique_in_memmap_files(&files, threads)
+    processor.count_unique_parallel_files(&files, threads)
 }
 
 fn process_input<T>(args: &CliArgs, processor: &mut T) -> Result<(), Error>
 where
-    T: CountUnique,
+    T: CountBuf,
 {
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
@@ -189,18 +189,17 @@ where
 
     cfg_if! {
         if #[cfg(feature = "memmap")] {
+            use io::memmap::CountMemmap;
             if args.no_memmap {
                 // process without memmap
-                io::read::count_unique_in_files(processor, &files)?;
+                processor.count_unique_in_files(&files)?;
             } else if args.memmap {
                 // use memmap forced by user
-                use line_cardinality::CountUniqueFromMemmapFile;
                 processor.count_unique_in_memmap_files(&files)?;
             } else {
                 cfg_if! {
                     if #[cfg(unix)] {
                         // by default, process with memmap on unix platforms
-                        use line_cardinality::CountUniqueFromMemmapFile;
                         processor.count_unique_in_memmap_files(&files)?;
                     } else {
                         // by default, process without memmap on non-unix platforms
@@ -223,12 +222,12 @@ where
 #[inline(always)]
 fn process_stdin<T>(args: &CliArgs, processor: &mut T) -> Result<(), Error>
 where
-    T: CountUnique,
+    T: CountBuf,
 {
     if !args.no_stdin {
         let stdin_handle = std::io::stdin().lock();
         if !stdin_handle.is_terminal() {
-            io::util::count_unique_in_read(processor, stdin_handle)?;
+            processor.count_unique_in_read(stdin_handle)?;
         }
     }
     Ok(())

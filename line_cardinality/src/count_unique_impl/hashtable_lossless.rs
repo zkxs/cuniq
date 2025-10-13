@@ -145,7 +145,7 @@ where
             .map(|entry| entry.counter)
     }
 
-    fn iter(&self) -> HashingLineCounterIter<C> {
+    fn iter(&self) -> HashingLineCounterIter<'_, C> {
         HashingLineCounterIter { inner: self.map.iter() }
     }
 

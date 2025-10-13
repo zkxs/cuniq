@@ -133,7 +133,7 @@ where
     fn get(&self, line: &[u8], hash: u64) -> Option<C>;
 
     /// Convert this [`ReportUniqueLineHash`] into a borrowed iter over each entry
-    fn iter(&self) -> HashingLineCounterIter<C>;
+    fn iter(&self) -> HashingLineCounterIter<'_, C>;
 
     /// Convert this [`ReportUniqueLineHash`] into an owned iter over each entry
     fn into_iter(self) -> HashingLineCounterIntoIter<C>;

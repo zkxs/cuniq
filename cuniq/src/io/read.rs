@@ -4,12 +4,12 @@
 //! Single-threaded read-based file processing
 
 use super::Result;
-use line_cardinality::CountUnique;
+use crate::io::buf::CountBuf;
 use std::fs::File;
 use std::io::BufReader;
 
 /// Provides capability to read data from newline-delimited files
-pub trait CountUniqueFromReadFile: CountUnique {
+pub(crate) trait CountRead {
     /// Count unique lines in some newline-delimited files.
     fn count_unique_in_files(&mut self, files: &[File]) -> Result<()>;
 
@@ -17,9 +17,9 @@ pub trait CountUniqueFromReadFile: CountUnique {
     fn count_unique_in_file(&mut self, file: &File) -> Result<()>;
 }
 
-impl<T> CountUniqueFromReadFile for T
+impl<C> CountRead for C
 where
-    T: CountUnique,
+    C: CountBuf,
 {
     fn count_unique_in_files(&mut self, files: &[File]) -> Result<()> {
         for file in files {

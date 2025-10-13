@@ -6,13 +6,13 @@
 //! Optional feature if `memmap` is enabled.
 
 use super::Result;
-use crate::CountUnique;
+use crate::io::buf::CountBuf;
 use line_cardinality::Error;
 use memmap2::Mmap;
 use std::fs::File;
 
 /// Provides capability to read data from newline-delimited memory-mapped files
-pub trait CountUniqueFromMemmapFile: CountUnique {
+pub(crate) trait CountMemmap {
     /// Count unique lines in some newline-delimited files.
     fn count_unique_in_memmap_files(&mut self, files: &[File]) -> Result<()>;
 
@@ -20,9 +20,9 @@ pub trait CountUniqueFromMemmapFile: CountUnique {
     fn count_unique_in_memmap_file(&mut self, file: &File) -> Result<()>;
 }
 
-impl<T> CountUniqueFromMemmapFile for T
+impl<C> CountMemmap for C
 where
-    T: CountUnique,
+    C: CountBuf,
 {
     fn count_unique_in_memmap_files(&mut self, files: &[File]) -> Result<()> {
         for file in files {
