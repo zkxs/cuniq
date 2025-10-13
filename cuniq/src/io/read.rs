@@ -6,30 +6,31 @@
 use super::Result;
 use crate::io::buf::CountBuf;
 use std::fs::File;
+use std::hash::BuildHasher;
 use std::io::BufReader;
 
 /// Provides capability to read data from newline-delimited files
 pub(crate) trait CountRead {
     /// Count unique lines in some newline-delimited files.
-    fn count_unique_in_files(&mut self, files: &[File]) -> Result<()>;
+    fn count_unique_in_files(&mut self, random_state: &impl BuildHasher, files: &[File]) -> Result<()>;
 
     /// Count unique lines in a newline-delimited file.
-    fn count_unique_in_file(&mut self, file: &File) -> Result<()>;
+    fn count_unique_in_file(&mut self, random_state: &impl BuildHasher, file: &File) -> Result<()>;
 }
 
 impl<C> CountRead for C
 where
     C: CountBuf,
 {
-    fn count_unique_in_files(&mut self, files: &[File]) -> Result<()> {
+    fn count_unique_in_files(&mut self, random_state: &impl BuildHasher, files: &[File]) -> Result<()> {
         for file in files {
-            self.count_unique_in_file(file)?;
+            self.count_unique_in_file(random_state, file)?;
         }
         Ok(())
     }
 
-    fn count_unique_in_file(&mut self, file: &File) -> Result<()> {
+    fn count_unique_in_file(&mut self, random_state: &impl BuildHasher, file: &File) -> Result<()> {
         let reader = BufReader::new(file);
-        self.count_unique_in_read(reader)
+        self.count_unique_in_read(random_state, reader)
     }
 }

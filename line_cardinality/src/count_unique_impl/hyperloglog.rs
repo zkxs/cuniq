@@ -224,4 +224,45 @@ mod test {
             0x0076543210EDCBA9
         );
     }
+
+    #[test]
+    fn test_merge_different() {
+        let random_state = ahash::RandomState::with_seeds(
+            0xD4D1C62E748C6F9F,
+            0x6AB3CDB8BD6660B5,
+            0x252E7AFD38FC5B30,
+            0xD47C5724DAD72AD1,
+        );
+        let mut a = HyperLogLog::with_capacity(16).unwrap();
+        let mut b = HyperLogLog::with_capacity(16).unwrap();
+        let mut ab = HyperLogLog::with_capacity(16).unwrap();
+        let word_a = random_state.hash_one(b"foo");
+        let word_b = random_state.hash_one(b"bar");
+        a.count_hash(word_a);
+        b.count_hash(word_b);
+        ab.count_hash(word_a);
+        ab.count_hash(word_b);
+        a.merge(&b);
+        assert_eq!(ab.count(), a.count());
+    }
+
+    #[test]
+    fn test_merge_same() {
+        let random_state = ahash::RandomState::with_seeds(
+            0xD4D1C62E748C6F9F,
+            0x6AB3CDB8BD6660B5,
+            0x252E7AFD38FC5B30,
+            0xD47C5724DAD72AD1,
+        );
+        let mut a = HyperLogLog::with_capacity(16).unwrap();
+        let mut b = HyperLogLog::with_capacity(16).unwrap();
+        let mut ab = HyperLogLog::with_capacity(16).unwrap();
+        let word_a = random_state.hash_one(b"foo");
+        a.count_hash(word_a);
+        b.count_hash(word_a);
+        ab.count_hash(word_a);
+        ab.count_hash(word_a);
+        a.merge(&b);
+        assert_eq!(ab.count(), a.count());
+    }
 }

@@ -7,21 +7,25 @@
 
 use super::util::ChunkIterator;
 use super::{ByHash, ByMerge, Result};
-use crate::hash::init_hasher_state;
 use crate::io::buf::CountBuf;
 use line_cardinality::{CountUniqueHash, Error, Merge};
 use memmap2::MmapOptions;
 use std::fs::File;
+use std::hash::BuildHasher;
 use std::{slice, thread};
 
 const DEFAULT_CHUNK_SIZE: usize = 0x1 << 27; // 2^27 == 134217728 bytes == 128 MiB
 
 pub(crate) trait CountParallel: CountBuf {
     /// Count unique lines in some newline-delimited files.
-    fn count_unique_parallel_files(&mut self, files: &[File], threads: usize) -> Result<()>;
+    fn count_unique_parallel_files<H>(&mut self, random_state: &H, files: &[File], threads: usize) -> Result<()>
+    where
+        H: BuildHasher + Clone + Send;
 
     /// Count unique lines in a newline-delimited file.
-    fn count_unique_parallel_file(&mut self, file: &File, threads: usize) -> Result<()>;
+    fn count_unique_parallel_file<H>(&mut self, random_state: &H, file: &File, threads: usize) -> Result<()>
+    where
+        H: BuildHasher + Clone + Send;
 }
 
 impl<C> CountParallel for ByHash<C>
@@ -31,7 +35,10 @@ where
     /// This approach does not require [`Merge`] but does require [`CountUniqueHash`], which means the worker threads can
     /// only hash and counting must be done from a single thread. n worker threads are created and sent chunks from the
     /// file. The workers hash lines in these chunks and then send them on to the counting thread.
-    fn count_unique_parallel_files(&mut self, files: &[File], threads: usize) -> Result<()> {
+    fn count_unique_parallel_files<H>(&mut self, random_state: &H, files: &[File], threads: usize) -> Result<()>
+    where
+        H: BuildHasher + Clone + Send,
+    {
         let mut mem_maps = Vec::with_capacity(files.len());
         for file in files {
             // SAFETY: dealing with external file modification is out of scope
@@ -52,7 +59,6 @@ where
             mem_maps.push(mem_map);
         }
 
-        let random_state = init_hasher_state();
         let (hash_sender, hash_receiver) = crossbeam_channel::bounded::<Vec<u64>>(0);
 
         thread::scope(|scope| {
@@ -121,8 +127,11 @@ where
         })
     }
 
-    fn count_unique_parallel_file(&mut self, file: &File, threads: usize) -> Result<()> {
-        self.count_unique_parallel_files(slice::from_ref(file), threads)
+    fn count_unique_parallel_file<H>(&mut self, random_state: &H, file: &File, threads: usize) -> Result<()>
+    where
+        H: BuildHasher + Clone + Send,
+    {
+        self.count_unique_parallel_files(random_state, slice::from_ref(file), threads)
     }
 }
 
@@ -132,9 +141,12 @@ where
 {
     /// This approach works by spawning n worker threads which are sent chunks from the files. Once
     /// all chunks are processed, the results are merged.
-    fn count_unique_parallel_files(&mut self, files: &[File], threads: usize) -> Result<()> {
+    fn count_unique_parallel_files<H>(&mut self, random_state: &H, files: &[File], threads: usize) -> Result<()>
+    where
+        H: BuildHasher + Clone + Send,
+    {
         if files.len() == 1 {
-            self.count_unique_parallel_file(&files[0], threads)
+            self.count_unique_parallel_file(random_state, &files[0], threads)
         } else {
             let mut mem_maps = Vec::with_capacity(files.len());
             for file in files {
@@ -163,11 +175,12 @@ where
                     let join_handles = (0..threads)
                         .map(|_| {
                             // spawn the thread
+                            let random_state = random_state.clone();
                             let mut counter = self.clone();
                             let chunk_receiver = chunk_receiver.clone();
                             scope.spawn(move || {
                                 while let Ok(chunk) = chunk_receiver.recv() {
-                                    counter.count_unique_in_bytes(chunk);
+                                    counter.count_unique_in_bytes(&random_state, chunk);
                                 }
                                 counter
                             })
@@ -203,7 +216,10 @@ where
 
     /// This approach works by splitting the file into roughly equal chunks. Each chunk is processed
     /// in its own thread. Once all chunks are done, the results are merged.
-    fn count_unique_parallel_file(&mut self, file: &File, threads: usize) -> Result<()> {
+    fn count_unique_parallel_file<H>(&mut self, random_state: &H, file: &File, threads: usize) -> Result<()>
+    where
+        H: BuildHasher + Clone + Send,
+    {
         // SAFETY: dealing with external file modification is out of scope
         let mem_map = unsafe {
             MmapOptions::new()
@@ -226,9 +242,10 @@ where
             let join_handles = chunk_iter
                 .map(|chunk| {
                     // spawn the thread
+                    let random_state = random_state.clone();
                     let mut counter = self.clone();
                     scope.spawn(move || {
-                        counter.count_unique_in_bytes(chunk);
+                        counter.count_unique_in_bytes(&random_state, chunk);
                         counter
                     })
                 })

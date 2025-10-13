@@ -10,28 +10,29 @@ use crate::io::buf::CountBuf;
 use line_cardinality::Error;
 use memmap2::Mmap;
 use std::fs::File;
+use std::hash::BuildHasher;
 
 /// Provides capability to read data from newline-delimited memory-mapped files
 pub(crate) trait CountMemmap {
     /// Count unique lines in some newline-delimited files.
-    fn count_unique_in_memmap_files(&mut self, files: &[File]) -> Result<()>;
+    fn count_unique_in_memmap_files(&mut self, random_state: &impl BuildHasher, files: &[File]) -> Result<()>;
 
     /// Count unique lines in a newline-delimited file.
-    fn count_unique_in_memmap_file(&mut self, file: &File) -> Result<()>;
+    fn count_unique_in_memmap_file(&mut self, random_state: &impl BuildHasher, file: &File) -> Result<()>;
 }
 
 impl<C> CountMemmap for C
 where
     C: CountBuf,
 {
-    fn count_unique_in_memmap_files(&mut self, files: &[File]) -> Result<()> {
+    fn count_unique_in_memmap_files(&mut self, random_state: &impl BuildHasher, files: &[File]) -> Result<()> {
         for file in files {
-            self.count_unique_in_memmap_file(file)?;
+            self.count_unique_in_memmap_file(random_state, file)?;
         }
         Ok(())
     }
 
-    fn count_unique_in_memmap_file(&mut self, file: &File) -> Result<()> {
+    fn count_unique_in_memmap_file(&mut self, random_state: &impl BuildHasher, file: &File) -> Result<()> {
         // SAFETY: dealing with external file modification is out of scope
         let mem_map = unsafe { Mmap::map(file) }.map_err(|e| Error::io_static("failed to memmap file", e))?;
 
@@ -46,7 +47,7 @@ where
                 .map_err(|e| Error::io_static("failed to set memmap file to Sequential mode", e))?;
         }
 
-        self.count_unique_in_bytes(&mem_map);
+        self.count_unique_in_bytes(random_state, &mem_map);
         Ok(())
     }
 }

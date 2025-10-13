@@ -3,11 +3,11 @@
 
 //! Single-threaded buffer-based file processing
 
-use crate::hash::init_hasher_state;
 use crate::io::util::LineIterator;
 use crate::io::{ByHash, ByLine, ByMerge};
 use bstr::io::BufReadExt;
 use line_cardinality::{CountUniqueHash, CountUniqueLineHash, Error, Merge};
+use std::hash::BuildHasher;
 use std::io::BufRead;
 
 pub(crate) trait CountBuf {
@@ -42,18 +42,21 @@ pub(crate) trait CountBuf {
     /// // we didn't send anything over stdin
     /// assert_eq!(line_counter.count(), 0);
     /// ```
-    fn count_unique_in_read<T: BufRead>(&mut self, reader: T) -> crate::io::Result<()>;
+    fn count_unique_in_read(&mut self, random_state: &impl BuildHasher, reader: impl BufRead) -> crate::io::Result<()>;
 
     /// Count unique lines in newline-delimited bytes.
-    fn count_unique_in_bytes(&mut self, bytes: &[u8]);
+    fn count_unique_in_bytes(&mut self, random_state: &impl BuildHasher, bytes: &[u8]);
 }
 
 impl<C> CountBuf for ByLine<C>
 where
     C: CountUniqueLineHash,
 {
-    fn count_unique_in_read<T: BufRead>(&mut self, mut reader: T) -> crate::io::Result<()> {
-        let random_state = init_hasher_state();
+    fn count_unique_in_read(
+        &mut self,
+        random_state: &impl BuildHasher,
+        mut reader: impl BufRead,
+    ) -> crate::io::Result<()> {
         reader
             .for_byte_line(|line| {
                 let hash = random_state.hash_one(line);
@@ -63,8 +66,7 @@ where
             .map_err(|e| Error::io_static("failed to read from buffer", e))
     }
 
-    fn count_unique_in_bytes(&mut self, bytes: &[u8]) {
-        let random_state = init_hasher_state();
+    fn count_unique_in_bytes(&mut self, random_state: &impl BuildHasher, bytes: &[u8]) {
         for line in LineIterator::new(bytes) {
             let hash = random_state.hash_one(line);
             self.0.count_line(line, hash, |line| random_state.hash_one(line));
@@ -76,12 +78,12 @@ impl<C> CountBuf for ByHash<C>
 where
     C: CountUniqueHash,
 {
-    fn count_unique_in_read<T: BufRead>(&mut self, reader: T) -> crate::io::Result<()> {
-        hash_count_unique_in_read(&mut self.0, reader)
+    fn count_unique_in_read(&mut self, random_state: &impl BuildHasher, reader: impl BufRead) -> crate::io::Result<()> {
+        hash_count_unique_in_read(&mut self.0, random_state, reader)
     }
 
-    fn count_unique_in_bytes(&mut self, bytes: &[u8]) {
-        hash_count_unique_in_bytes(&mut self.0, bytes)
+    fn count_unique_in_bytes(&mut self, random_state: &impl BuildHasher, bytes: &[u8]) {
+        hash_count_unique_in_bytes(&mut self.0, random_state, bytes)
     }
 }
 
@@ -89,20 +91,20 @@ impl<C> CountBuf for ByMerge<C>
 where
     C: CountUniqueHash + Merge + Clone,
 {
-    fn count_unique_in_read<T: BufRead>(&mut self, reader: T) -> crate::io::Result<()> {
-        hash_count_unique_in_read(&mut self.0, reader)
+    fn count_unique_in_read(&mut self, random_state: &impl BuildHasher, reader: impl BufRead) -> crate::io::Result<()> {
+        hash_count_unique_in_read(&mut self.0, random_state, reader)
     }
 
-    fn count_unique_in_bytes(&mut self, bytes: &[u8]) {
-        hash_count_unique_in_bytes(&mut self.0, bytes)
+    fn count_unique_in_bytes(&mut self, random_state: &impl BuildHasher, bytes: &[u8]) {
+        hash_count_unique_in_bytes(&mut self.0, random_state, bytes)
     }
 }
 
 fn hash_count_unique_in_read<C: CountUniqueHash, T: BufRead>(
     processor: &mut C,
+    random_state: &impl BuildHasher,
     mut reader: T,
 ) -> crate::io::Result<()> {
-    let random_state = init_hasher_state();
     reader
         .for_byte_line(|line| {
             let hash = random_state.hash_one(line);
@@ -112,8 +114,7 @@ fn hash_count_unique_in_read<C: CountUniqueHash, T: BufRead>(
         .map_err(|e| Error::io_static("failed to read from buffer", e))
 }
 
-fn hash_count_unique_in_bytes<C: CountUniqueHash>(processor: &mut C, bytes: &[u8]) {
-    let random_state = init_hasher_state();
+fn hash_count_unique_in_bytes<C: CountUniqueHash>(processor: &mut C, random_state: &impl BuildHasher, bytes: &[u8]) {
     for line in LineIterator::new(bytes) {
         let hash = random_state.hash_one(line);
         processor.count_hash(hash);

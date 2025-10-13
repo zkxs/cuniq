@@ -39,12 +39,12 @@ impl<'a> Iterator for ChunkIterator<'a> {
         if self.chunk_start_index >= self.data.len() {
             // edge case: we have ran out of data and are ready to stop iterating
             None
-        } else if self.chunk_end_index >= self.data.len() {
-            // edge case: end ptr has passed end of mem_map
+        } else if self.chunk_end_index > self.data.len() {
+            // edge case: end index has passed end of mem_map
             // just use real end and skip the newline search shit
             let chunk = &self.data[self.chunk_start_index..];
 
-            // update start ptr so that the next iteration returns None
+            // update start index so that the next iteration returns None
             self.chunk_start_index = self.data.len();
 
             Some(chunk)
@@ -109,5 +109,48 @@ impl<'a> Iterator for LineIterator<'a> {
             // handle end
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::fs::File;
+    use std::io::Read;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_line_iterator() {
+        let mut path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.pop();
+        path.push("test_files");
+        path.push("large.txt");
+        let mut file = File::open(path).unwrap();
+        let mut buf = Vec::new();
+        let expected_size = file.read_to_end(&mut buf).unwrap();
+        let actual_size: usize = LineIterator::new(&buf).map(|chunk| chunk.len() + 1).sum();
+        assert_eq!(
+            actual_size, expected_size,
+            "expected sum of all lines to match file size"
+        );
+    }
+
+    #[test]
+    fn test_chunk_iterator() {
+        let mut path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.pop();
+        path.push("test_files");
+        path.push("large.txt");
+        let mut file = File::open(path).unwrap();
+        let mut buf = Vec::new();
+        let expected_size = file.read_to_end(&mut buf).unwrap();
+        let actual_size = ChunkIterator::new(&buf, 1024)
+            .map(|chunk| chunk.len() + 1) // +1 because we skip a newline character
+            .sum::<usize>()
+            - 1; // -1 because we DON'T omit the final newline
+        assert_eq!(
+            actual_size, expected_size,
+            "expected sum of all chunks to match file size"
+        );
     }
 }

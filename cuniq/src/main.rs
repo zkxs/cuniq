@@ -2,6 +2,7 @@
 // cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
 use std::fs::File;
+use std::hash::BuildHasher;
 use std::io::{BufWriter, ErrorKind, IsTerminal, Write};
 use std::process::ExitCode;
 
@@ -15,9 +16,10 @@ use line_cardinality::{
 };
 
 use crate::cli_args::{CliArgs, Mode};
+use crate::hash::init_hasher_state;
 use crate::io::buf::CountBuf;
-use crate::io::{ByHash, ByLine, ByMerge};
 use crate::io::read::CountRead;
+use crate::io::{ByHash, ByLine, ByMerge};
 
 #[cfg(feature = "parallel")]
 use crate::io::parallel::CountParallel;
@@ -174,6 +176,8 @@ fn parallel_process_input<T>(args: &CliArgs, processor: &mut T, threads: usize) 
 where
     T: CountParallel,
 {
+    let random_state = init_hasher_state();
+
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
     for path in &args.files {
@@ -181,15 +185,17 @@ where
         files.push(file);
     }
 
-    process_stdin(args, processor)?;
+    process_stdin(args, &random_state, processor)?;
 
-    processor.count_unique_parallel_files(&files, threads)
+    processor.count_unique_parallel_files(&random_state, &files, threads)
 }
 
 fn process_input<T>(args: &CliArgs, processor: &mut T) -> Result<(), Error>
 where
     T: CountBuf,
 {
+    let random_state = init_hasher_state();
+
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
     for path in &args.files {
@@ -197,25 +203,25 @@ where
         files.push(file);
     }
 
-    process_stdin(args, processor)?;
+    process_stdin(args, &random_state, processor)?;
 
     cfg_if! {
         if #[cfg(feature = "memmap")] {
             use io::memmap::CountMemmap;
             if args.no_memmap {
                 // process without memmap
-                processor.count_unique_in_files(&files)?;
+                processor.count_unique_in_files(&random_state, &files)?;
             } else if args.memmap {
                 // use memmap forced by user
-                processor.count_unique_in_memmap_files(&files)?;
+                processor.count_unique_in_memmap_files(&random_state, &files)?;
             } else {
                 cfg_if! {
                     if #[cfg(unix)] {
                         // by default, process with memmap on unix platforms
-                        processor.count_unique_in_memmap_files(&files)?;
+                        processor.count_unique_in_memmap_files(&random_state, &files)?;
                     } else {
                         // by default, process without memmap on non-unix platforms
-                        processor.count_unique_in_files(&files)?;
+                        processor.count_unique_in_files(&random_state, &files)?;
                     }
                 }
             }
@@ -224,7 +230,7 @@ where
                 Err(Error::message_static("This cuniq binary was compiled without memmap support"))?;
             } else {
                 // process without memmap
-                processor.count_unique_in_files(&files)?;
+                processor.count_unique_in_files(&random_state, &files)?;
             }
         }
     }
@@ -232,14 +238,11 @@ where
 }
 
 #[inline(always)]
-fn process_stdin<T>(args: &CliArgs, processor: &mut T) -> Result<(), Error>
-where
-    T: CountBuf,
-{
+fn process_stdin(args: &CliArgs, random_state: &impl BuildHasher, processor: &mut impl CountBuf) -> Result<(), Error> {
     if !args.no_stdin {
         let stdin_handle = std::io::stdin().lock();
         if !stdin_handle.is_terminal() {
-            processor.count_unique_in_read(stdin_handle)?;
+            processor.count_unique_in_read(random_state, stdin_handle)?;
         }
     }
     Ok(())
