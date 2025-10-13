@@ -15,9 +15,6 @@ use line_cardinality::{
     ReportUniqueLineHash,
 };
 
-#[cfg(feature = "memmap")]
-use line_cardinality::Merge;
-
 use crate::cli_args::{CliArgs, Mode};
 
 mod cli_args;
@@ -36,19 +33,10 @@ static STDOUT_ERROR_MESSAGE: &str = "failed to write to stdout";
 
 fn main() -> ExitCode {
     let args = CliArgs::parse();
-    match (args.trim, args.lowercase) {
-        (false, false) => run_with_const_parameters::<false, false>(args),
-        (false, true) => run_with_const_parameters::<false, true>(args),
-        (true, false) => run_with_const_parameters::<true, false>(args),
-        (true, true) => run_with_const_parameters::<true, true>(args),
-    }
-}
-
-fn run_with_const_parameters<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> ExitCode {
     let result = if args.report {
-        report::<TRIM, LOWERCASE>(args)
+        report(args)
     } else {
-        count::<TRIM, LOWERCASE>(args)
+        count(args)
     };
     if let Err(e) = result {
         match e.get_cause() {
@@ -64,11 +52,10 @@ fn run_with_const_parameters<const TRIM: bool, const LOWERCASE: bool>(args: CliA
     }
 }
 
-fn report<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), Error> {
+fn report(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
-            let mut processor = LosslessHashingLineCounter::<Count, _>::with_line_mapper_and_capacity(
-                preprocess_line::<TRIM, LOWERCASE>,
+            let mut processor = LosslessHashingLineCounter::<Count>::with_capacity(
                 args.size.unwrap_or(0),
             );
             process_input(&args, &mut processor)?;
@@ -111,18 +98,17 @@ fn write_line<T: Write>(writer: &mut T, line: &[u8], count: &Count) -> Result<()
     writeln!(writer).map_err(|e| Error::io_static(STDOUT_ERROR_MESSAGE, e))
 }
 
-fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), Error> {
+fn count(args: CliArgs) -> Result<(), Error> {
     match args.mode {
         Mode::Exact => {
             let mut processor =
-                LineCounter::with_line_mapper_and_capacity(preprocess_line::<TRIM, LOWERCASE>, args.size.unwrap_or(0));
+                LosslessHashingLineCounter::with_capacity(args.size.unwrap_or(0));
             process_input(&args, &mut processor)?;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
         }
         Mode::NearExact => {
-            let mut processor = LossyHashingLineCounter::with_line_mapper_and_capacity(
-                preprocess_line::<TRIM, LOWERCASE>,
+            let mut processor = LossyHashingLineCounter::with_capacity(
                 args.size.unwrap_or(0),
             );
 
@@ -146,9 +132,9 @@ fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), E
             let mut processor = if let Some(size) = args.size {
                 let size = usize::max(16, size); // make size at least 16
                 let size = previous_power_of_2(size); // reduce size to nearest power of 2
-                HyperLogLog::with_line_mapper_and_capacity(preprocess_line::<TRIM, LOWERCASE>, size)?
+                HyperLogLog::with_capacity(size)?
             } else {
-                HyperLogLog::with_line_mapper(preprocess_line::<TRIM, LOWERCASE>)
+                HyperLogLog::new()
             };
 
             cfg_if! {
@@ -170,28 +156,10 @@ fn count<const TRIM: bool, const LOWERCASE: bool>(args: CliArgs) -> Result<(), E
     Ok(())
 }
 
-#[cfg(feature = "memmap")]
-fn parallel_chunked_process_input<T>(args: &CliArgs, processor: &mut T, threads: usize) -> Result<(), Error>
-where
-    T: line_cardinality::CountUniqueFromMemmapFile + line_cardinality::CountUniqueHash,
-{
-    // pre-open all files so that we can display any errors and abort *before* doing work
-    let mut files: Vec<File> = Vec::with_capacity(args.files.len());
-    for path in &args.files {
-        let file = File::open(path).map_err(|e| Error::io(format!("error opening file \"{}\"", path.display()), e))?;
-        files.push(file);
-    }
-
-    process_stdin(args, processor)?;
-
-    use line_cardinality::ParallelChunkedCountUniqueFromMemmapFile;
-    processor.parallel_chunked_count_unique_in_memmap_files(&files, threads)
-}
-
-#[cfg(feature = "memmap")]
+#[cfg(feature = "parallel")]
 fn parallel_process_input<T>(args: &CliArgs, processor: &mut T, threads: usize) -> Result<(), Error>
 where
-    T: line_cardinality::CountUniqueFromMemmapFile + Merge + Send + Sync + 'static,
+    T: line_cardinality::CountUniqueHash,
 {
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
@@ -208,7 +176,7 @@ where
 
 fn process_input<T>(args: &CliArgs, processor: &mut T) -> Result<(), Error>
 where
-    T: line_cardinality::CountUniqueFromReadFile,
+    T: CountUnique,
 {
     // pre-open all files so that we can display any errors and abort *before* doing work
     let mut files: Vec<File> = Vec::with_capacity(args.files.len());
@@ -223,7 +191,7 @@ where
         if #[cfg(feature = "memmap")] {
             if args.no_memmap {
                 // process without memmap
-                processor.count_unique_in_files(&files)?;
+                io::read::count_unique_in_files(processor, &files)?;
             } else if args.memmap {
                 // use memmap forced by user
                 use line_cardinality::CountUniqueFromMemmapFile;
@@ -260,22 +228,10 @@ where
     if !args.no_stdin {
         let stdin_handle = std::io::stdin().lock();
         if !stdin_handle.is_terminal() {
-            processor.count_unique_in_read(stdin_handle)?;
+            io::util::count_unique_in_read(processor, stdin_handle)?;
         }
     }
     Ok(())
-}
-
-#[inline(always)]
-fn preprocess_line<'a, const TRIM: bool, const LOWERCASE: bool>(line: &'a [u8], buffer: &'a mut Vec<u8>) -> &'a [u8] {
-    let trimmed = if TRIM { line.trim() } else { line };
-    if LOWERCASE {
-        buffer.clear();
-        trimmed.to_lowercase_into(buffer);
-        buffer
-    } else {
-        trimmed
-    }
 }
 
 /// Get the previous (or current) power of 2 for a number.

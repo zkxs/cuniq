@@ -32,6 +32,7 @@ where
     }
 
     fn count_unique_in_memmap_file(&mut self, file: &File) -> Result<()> {
+        // SAFETY: dealing with external file modification is out of scope
         let mem_map = unsafe { Mmap::map(file) }.map_err(|e| Error::io_static("failed to memmap file", e))?;
 
         #[cfg(unix)]

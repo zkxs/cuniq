@@ -25,14 +25,6 @@ pub(crate) struct CliArgs {
     #[arg(short = 's', long)]
     pub(crate) sort: bool,
 
-    /// Remove leading and trailing whitespace from input
-    #[arg(short, long)]
-    pub(crate) trim: bool,
-
-    /// Convert input to lowercase
-    #[arg(short, long = "lower")]
-    pub(crate) lowercase: bool,
-
     /// Sets the algorithm used to count (or estimate) cardinality.
     #[arg(value_enum, short = 'm', long, default_value_t)]
     pub(crate) mode: Mode,
