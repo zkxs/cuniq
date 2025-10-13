@@ -75,6 +75,7 @@ impl TestFile {
 fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
     // get cuniq exe path
     let cuniq_path = env!("CARGO_BIN_EXE_cuniq");
+    let old_cuniq_path = r"C:\Users\runtime\.cargo\bin\cuniq-1.0.3.exe";
     println!("running benchmarks against \"{cuniq_path}\"");
 
     for test_file in TEST_FILES {
@@ -135,7 +136,7 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         // cuniq input.txt
         group.bench_function("cuniq-1.0.3", |bencher| {
             bencher.iter(|| {
-                let cuniq = Command::new(r"C:\Users\runtime\.cargo\bin\cuniq-1.0.3.exe")
+                let cuniq = Command::new(old_cuniq_path)
                     .arg("--no-stdin")
                     .arg("--memmap")
                     .arg(path_buf.as_os_str())
@@ -165,6 +166,23 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
         });
 
         // cuniq --mode=near-exact input.txt
+        group.bench_function("cuniq-1.0.3-hash", |bencher| {
+            bencher.iter(|| {
+                let cuniq = Command::new(old_cuniq_path)
+                    .arg("--no-stdin")
+                    .arg("--memmap")
+                    .arg("--mode=near-exact")
+                    .arg(path_buf.as_os_str())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                let output = cuniq.wait_with_output().unwrap();
+                let result = std::str::from_utf8(&output.stdout).unwrap();
+                assert_eq!(result, &expected);
+            });
+        });
+
+        // cuniq --mode=near-exact input.txt
         group.bench_function("cuniq-hash", |bencher| {
             bencher.iter(|| {
                 let cuniq = Command::new(cuniq_path)
@@ -178,6 +196,40 @@ fn bench_cuniq_count_vs_shell(c: &mut Criterion) {
                 let output = cuniq.wait_with_output().unwrap();
                 let result = std::str::from_utf8(&output.stdout).unwrap();
                 assert_eq!(result, &expected);
+            });
+        });
+
+        // cuniq --mode=estimate input.txt
+        group.bench_function("cuniq-1.0.3-hll", |bencher| {
+            bencher.iter(|| {
+                let cuniq = Command::new(old_cuniq_path)
+                    .arg("--no-stdin")
+                    .arg("--memmap")
+                    .arg("--mode=estimate")
+                    .arg(path_buf.as_os_str())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                let output = cuniq.wait_with_output().unwrap();
+                let result = std::str::from_utf8(&output.stdout).unwrap();
+                assert!(!result.is_empty());
+            });
+        });
+
+        // cuniq --mode=estimate input.txt
+        group.bench_function("cuniq-hll", |bencher| {
+            bencher.iter(|| {
+                let cuniq = Command::new(cuniq_path)
+                    .arg("--no-stdin")
+                    .arg("--memmap")
+                    .arg("--mode=estimate")
+                    .arg(path_buf.as_os_str())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                let output = cuniq.wait_with_output().unwrap();
+                let result = std::str::from_utf8(&output.stdout).unwrap();
+                assert!(!result.is_empty());
             });
         });
 
