@@ -51,6 +51,7 @@ impl<'a> Iterator for ChunkIterator<'a> {
         } else {
             let search_range = &self.data[self.chunk_end_index..];
             if let Some(newline_index) = memchr::memchr(b'\n', search_range) {
+                let newline_index = self.chunk_end_index + newline_index;
                 let chunk = &self.data[self.chunk_start_index..newline_index];
 
                 // update start of next chunk to be directly after this newline
