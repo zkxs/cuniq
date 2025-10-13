@@ -7,7 +7,8 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 // require certain features for this benchmark
 #[cfg(not(all(feature = "parallel")))]

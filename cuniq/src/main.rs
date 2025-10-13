@@ -114,11 +114,17 @@ fn count(args: CliArgs) -> Result<(), Error> {
             let mut processor = ByHash(processor);
             cfg_if! {
                 if #[cfg(feature = "memmap")] {
-                    let threads = args.threads.unwrap_or_else(num_cpus::get);
-                    if threads > 1 {
-                        parallel_process_input(&args, &mut processor, threads)?;
-                    } else {
-                        process_input(&args, &mut processor)?;
+                    cfg_if! {
+                        if #[cfg(feature = "parallel")] {
+                            let threads = args.threads.unwrap_or_else(num_cpus::get);
+                            if threads > 1 {
+                                parallel_process_input(&args, &mut processor, threads)?;
+                            } else {
+                                process_input(&args, &mut processor)?;
+                            }
+                        } else {
+                            process_input(&args, &mut processor)?;
+                        }
                     }
                 } else {
                     process_input(&args, &mut processor)?;
@@ -139,11 +145,17 @@ fn count(args: CliArgs) -> Result<(), Error> {
             let mut processor = ByMerge(processor);
             cfg_if! {
                 if #[cfg(feature = "memmap")] {
-                    let threads = args.threads.unwrap_or_else(num_cpus::get);
-                    if threads > 1 {
-                        parallel_process_input(&args, &mut processor, threads)?;
-                    } else {
-                        process_input(&args, &mut processor)?;
+                    cfg_if! {
+                        if #[cfg(feature = "parallel")] {
+                            let threads = args.threads.unwrap_or_else(num_cpus::get);
+                            if threads > 1 {
+                                parallel_process_input(&args, &mut processor, threads)?;
+                            } else {
+                                process_input(&args, &mut processor)?;
+                            }
+                        } else {
+                            process_input(&args, &mut processor)?;
+                        }
                     }
                 } else {
                     process_input(&args, &mut processor)?;

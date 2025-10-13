@@ -5,15 +5,13 @@ I'm probably missing something obvious, but to test various feature combinations
 ```shell
 cargo clippy --all-features
 cargo clippy --no-default-features
-cargo clippy --no-default-features --features file
-cargo clippy --no-default-features --features memchr
-cargo clippy --no-default-features --features ahash
+cargo clippy --no-default-features --features memmap
+cargo clippy --no-default-features --features parallel
 cargo clippy --benches --no-default-features --features bench
 cargo test --all-features
 cargo test --no-default-features
-cargo test --no-default-features --features file
-cargo test --no-default-features --features memchr
-cargo test --no-default-features --features ahash
+cargo test --no-default-features --features memmap
+cargo test --no-default-features --features parallel
 #cargo test --benches --no-default-features --features bench # runs benchmarks as test without recording results
 cargo clippy --package cuniq --all-features
 cargo clippy --package cuniq --no-default-features
