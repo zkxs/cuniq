@@ -1,6 +1,10 @@
 // This file is part of cuniq. Copyright © 2025 cuniq contributors.
 // cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
+//! Single-threaded memmap-based file processing
+//!
+//! Optional feature if `memmap` is enabled.
+
 use super::Result;
 use crate::CountUnique;
 use line_cardinality::Error;

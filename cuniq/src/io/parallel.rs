@@ -1,7 +1,9 @@
 // This file is part of cuniq. Copyright © 2025 cuniq contributors.
 // cuniq is licensed under the GNU GPL v3.0 or any later version. See LICENSE file for full text.
 
-//! Optional feature if `parallel` is enabled, which also guarantees `memmap2`, `memchr`, and `crossbeam-channel`
+//! Multithreaded
+//!
+//! Optional feature if `parallel` is enabled, which also guarantees `memmap2` and `crossbeam-channel`
 
 use super::util::{RawChunkIterator, RawSlice};
 use super::Result;
