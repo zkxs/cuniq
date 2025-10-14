@@ -68,14 +68,22 @@ The following plot shows time spent to count the unique lines. `cuniq-hash` and 
 the string's hash is retained, which in theory is vulnerable to hash collisions, but in practice with the 64-bit hashes
 they're using it would be extraordinarily rare to see incorrect results.
 
+<div style="display: inline-block; background-color: #FFFFFF;">
+
 [![violin plot of count timing](docs/criterion/count_large/report/violin.svg)](docs/criterion/count_large/report/index.html)
+
+</div>
 
 ### Reporting
 
 This test gets a report of the number of times each distinct line occurred. Of the 6 counting commands tested only 4
 have this feature, which is why there are fewer rows in the plot.
 
+<div style="display: inline-block; background-color: #FFFFFF;">
+
 [![violin plot of report timing](docs/criterion/report_large/report/violin.svg)](docs/criterion/report_large/report/index.html)
+
+</div>
 
 ## Tests against a huge file
 
