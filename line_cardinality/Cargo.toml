@@ -10,7 +10,7 @@ repository.workspace = true
 keywords.workspace = true
 categories = []
 autobenches = false
-rust-version = "1.74.1"
+rust-version = "1.85.0"
 
 [dependencies]
 hashbrown = { version = "0.16", default-features = false }
