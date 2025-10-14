@@ -13,13 +13,13 @@ autobenches = false
 rust-version = "1.74.1"
 
 [dependencies]
-hashbrown = { version = "0.15", default-features = false }
+hashbrown = { version = "0.16", default-features = false }
 
 [dev-dependencies]
 ahash = { workspace = true, default-features = false }
 bstr.workspace = true
 criterion.workspace = true
-hashbrown = { version = "0.15", features = ["raw-entry"], default-features = false }
+hashbrown = { version = "0.16", features = ["raw-entry"], default-features = false }
 
 [[bench]]
 name = "benches"
