@@ -29,7 +29,7 @@ default = ["parallel", "memmap", "compile-time-rng"]
 # Ability to read files via memory-mapping
 memmap = ["dep:memmap2"]
 # Ability to process data using multiple threads
-parallel = ["memmap", "dep:num_cpus", "dep:crossbeam-channel"]
+parallel = ["memmap", "dep:num_cpus", "dep:crossbeam-channel", "line_cardinality/parallel"]
 # Enables compile-time RNG for ahash seed
 compile-time-rng = ["ahash/compile-time-rng"]
 # Features required for the benchmarks to run. This feature set is not stable and should not be used outside of running the benchmarks.

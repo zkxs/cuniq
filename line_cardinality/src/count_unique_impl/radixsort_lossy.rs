@@ -60,6 +60,7 @@ impl CountUnique for LossySortingLineCounter {
         }
     }
 
+    #[cfg(feature = "parallel")]
     fn count_multithreaded(&mut self, threads: usize) -> usize {
         if threads > 1 {
             if self.line_hashes.is_empty() {

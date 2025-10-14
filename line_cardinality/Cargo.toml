@@ -12,9 +12,13 @@ categories = []
 autobenches = false
 rust-version = "1.85.0"
 
+[features]
+# Ability to process data using multiple threads
+parallel = ["voracious_radix_sort/voracious_multithread"]
+
 [dependencies]
 hashbrown = { version = "0.16", default-features = false }
-voracious_radix_sort = { version = "1", features = ["voracious_multithread"] }
+voracious_radix_sort = { version = "1", default-features = false }
 
 [dev-dependencies]
 ahash = { workspace = true, default-features = false }
