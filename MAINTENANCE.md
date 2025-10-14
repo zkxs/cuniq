@@ -45,3 +45,9 @@ MSRV checks:
 cargo msrv --package cuniq --path cuniq verify
 cargo msrv --package line_cardinalty --path line_cardinality verify
 ```
+
+Show assembly
+
+```shell
+RUSTFLAGS="-C target-cpu=native" cargo +nightly asm -Z build-std=std --package=cuniq --bin=cuniq --profile=release-optimized-debug --target-cpu=native --intel --simplify
+```

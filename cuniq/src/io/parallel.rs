@@ -73,7 +73,7 @@ where
                     let random_state = random_state.clone();
                     scope.spawn(move || {
                         while let Ok(bytes) = chunk_receiver.recv() {
-                            let mut hashes = Vec::with_capacity(DEFAULT_CHUNK_SIZE);
+                            let mut hashes = Vec::new();
                             let mut start: usize = 0;
                             for newline_index in memchr::memchr_iter(b'\n', bytes) {
                                 let line = &bytes[start..newline_index];
@@ -175,7 +175,7 @@ where
                     let random_state = random_state.clone();
                     scope.spawn(move || {
                         while let Ok(bytes) = chunk_receiver.recv() {
-                            let mut hashes = Vec::with_capacity(DEFAULT_CHUNK_SIZE);
+                            let mut hashes = Vec::new();
                             let mut start: usize = 0;
                             for newline_index in memchr::memchr_iter(b'\n', bytes) {
                                 let hash = random_state.hash_one(&bytes[start..newline_index]);

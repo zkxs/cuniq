@@ -111,6 +111,13 @@ Tests were ran on an AMD Ryzen 7 7800X3D (16 threads) with 5200 MT/s memory and 
 The commands that are noted as "only stores hash" are in theory vulnerable to hash collisions, but in practice with the
 64-bit hashes they're using it would be extraordinarily rare to see incorrect results.
 
+# Profiling
+
+```shell
+RUSTFLAGS="-C target-cpu=native" cargo +nightly build -Z build-std=std --profile=release-optimized-debug --target=x86_64-pc-windows-msvc
+flamegraph -- <path-to-binary> -no-stdin test_files/huge.txt
+```
+
 # Profiling on Windows
 
 For some reason on Windows `cargo flamegraph` isn't picking up the debug symbols when used from the project root.
