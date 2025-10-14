@@ -92,7 +92,7 @@ allow = [
     # Bog standard stuff
     "Apache-2.0",
     "CC0-1.0",
-    "GPL-3.0",
+    "GPL-3.0-or-later",
     "MIT",
     # Weirder stuff
     "Unicode-3.0", # OSI but not FSF approved. Needed by unicode-ident.
@@ -212,7 +212,7 @@ skip = [
 skip-tree = [
     #"ansi_term@0.11.0", # will be skipped along with _all_ of its direct and transitive dependencies
     #{ crate = "ansi_term@0.11.0", depth = 20 },
-    { crate = "windows-sys@0.59", reason = "old winapi bindings" }
+    { crate = "windows-sys@0.60", reason = "old winapi bindings" }
 ]
 
 # This section is considered when running `cargo deny check sources`.
