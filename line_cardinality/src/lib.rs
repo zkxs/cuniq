@@ -55,8 +55,9 @@ pub trait CountUnique {
     /// Resets internal state of this [`CountUnique`] for reuse
     fn reset(&mut self);
 
-    /// Performs a multithreaded count if `threads` > 1, otherwise falls back to a singlethreaded count. Most
-    /// implementations do not support multithreading.
+    /// Performs a multithreaded count if `threads` > 1 and the `parallel` feature is enable, otherwise falls back to a
+    /// singlethreaded count. Most implementations do not support multithreading: check the implementation specific docs
+    /// to see if multithreading is mentioned.
     fn count_multithreaded(&mut self, threads: usize) -> usize {
         let _ = threads;
         self.count()

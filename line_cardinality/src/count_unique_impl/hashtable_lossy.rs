@@ -7,6 +7,10 @@ use crate::{CountUnique, CountUniqueHash};
 
 /// Calculates the unique count and holds necessary state.
 ///
+/// This approach uses O(k) memory, where *k* is the cardinality of the dataset. Note that if the data set has a high
+/// cardinality (e.g. a low number of repeated entries) a sorting-based approach such as
+/// [`LossySortingLineCounter`](crate::LossySortingLineCounter) will yield superior performance despite using more memory.
+///
 /// Internally, a [`HashTable`] is created that contains an entry for each distinct hashed line in the
 /// input. This may be expensive to drop if it contains a large amount of processed data, so using
 /// [`std::mem::forget`] may be worth considering if your application will terminate immediately

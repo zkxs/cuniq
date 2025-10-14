@@ -136,6 +136,11 @@ fn count(args: CliArgs) -> Result<(), Error> {
             std::mem::forget(processor); // same explanation as above
         }
         Mode::NearExact => {
+            /* I very intentionally use the hashtable-based LossyHashingLineCounter over the hashed-radix-sort-based
+             * LossySortingLineCounter here. Even though hashed sort performs better with high cardinality, it performs
+             * terribly at low cardinality. I'm not willing to use an algorithm where good performance is an edge case
+             * as one of my defaults.
+             */
             let processor = LossyHashingLineCounter::with_capacity(args.size.unwrap_or(0));
             let mut processor = ByHash(processor);
             cfg_if! {

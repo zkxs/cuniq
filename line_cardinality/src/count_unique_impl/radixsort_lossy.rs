@@ -6,6 +6,11 @@ use voracious_radix_sort::RadixSort;
 
 /// Calculates the unique count and holds necessary state.
 ///
+/// This approach uses O(n) memory, where *n* is the size of the data set. This is worse than
+/// [`LossyHashingLineCounter`](crate::LossyHashingLineCounter)!
+/// However, due to the significantly less randomized memory access pattern of a radix sort it can win due to CPU
+/// caching, particularly when the data set has a high cardinality (e.g. a low number of repeated entries).
+///
 /// Internally, a [`Vec`] is created that contains an entry for each distinct hashed line in the
 /// input. This may be expensive to drop if it contains a large amount of processed data, so using
 /// [`std::mem::forget`] may be worth considering if your application will terminate immediately
@@ -13,6 +18,10 @@ use voracious_radix_sort::RadixSort;
 ///
 /// This implementation uniquely performs a radix sort when [`count`](CountUnique::count) is called, which is expensive
 /// so you should consider caching the result.
+///
+/// Note that this is one of the few algorithms where parallelism is beneficial in the final count, so consider
+/// enabling the `parallel` feature and calling [`count_multithreaded`](CountUnique::count_multithreaded) instead of
+/// [`count`](CountUnique::count).
 pub struct LossySortingLineCounter {
     line_hashes: Vec<u64>,
 }
@@ -57,6 +66,10 @@ impl LossySortingLineCounter {
 }
 
 impl CountUnique for LossySortingLineCounter {
+    /// Returns current cardinality count.
+    ///
+    /// Note that this is one of the few algorithms where parallelism is beneficial in the final count, so consider
+    /// enabling the `parallel` feature and calling [`count_multithreaded`](CountUnique::count_multithreaded) instead.
     fn count(&mut self) -> usize {
         if self.line_hashes.is_empty() {
             0
@@ -69,6 +82,9 @@ impl CountUnique for LossySortingLineCounter {
         }
     }
 
+    /// Performs a multithreaded count if `threads` > 1, otherwise falls back to a singlethreaded count.
+    ///
+    /// Note that this is one of the few algorithms where parallelism is beneficial in the final count.
     #[cfg(feature = "parallel")]
     fn count_multithreaded(&mut self, threads: usize) -> usize {
         if threads > 1 {
