@@ -12,7 +12,6 @@ use bstr::ByteSlice;
 use bstr::io::BufReadExt;
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
-use crate::baked_in_hash::BakedInHashLineCounter;
 use line_cardinality::{
     CountUnique, CountUniqueHash, CountUniqueLineHash, HyperLogLog, LosslessHashingLineCounter,
     LossyHashingLineCounter, LossySortingLineCounter,
@@ -20,8 +19,6 @@ use line_cardinality::{
 
 criterion_group!(benches, bench_tweaks);
 criterion_main!(benches);
-
-mod baked_in_hash;
 
 /// primary test condition
 const TEST_FILE_ENGLISH_WORDS: TestFile = TestFile::new("hamlet_words.txt", 5414);
@@ -108,26 +105,6 @@ fn bench_tweaks(c: &mut Criterion) {
                     })
                     .unwrap();
                 assert_eq!(processor.count(), ENGLISH_WORDS_LOWERCASE_COUNT);
-            },
-            FILE_HANDLE_BATCH_SIZE,
-        );
-    });
-
-    // self-hashing implementation.
-    // This is a sanity check to make sure forcing the API user to do hashing isn't somehow worse than doing it internally.
-    group.bench_function("selfhash", |bencher| {
-        bencher.iter_batched(
-            || TEST_FILE_ENGLISH_WORDS.open(),
-            |file| {
-                let mut reader = BufReader::new(file);
-                let mut processor = BakedInHashLineCounter::new();
-                reader
-                    .for_byte_line(|line| {
-                        processor.count_line(line);
-                        Ok(true)
-                    })
-                    .unwrap();
-                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
             },
             FILE_HANDLE_BATCH_SIZE,
         );
