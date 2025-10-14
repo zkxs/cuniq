@@ -7,7 +7,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
 
 // require certain features for this benchmark
