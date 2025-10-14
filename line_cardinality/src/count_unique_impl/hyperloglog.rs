@@ -14,12 +14,6 @@ static DEFAULT_SIZE_ERROR_MESSAGE: &str = "expected DEFAULT_SIZE to be a valid s
 ///
 /// The estimate is performed using [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog), a
 /// state-of-the art cardinality approximation algorithm. This uses constant memory.
-///
-/// This implementation also has accepts a customizable `line_mapper` function with
-/// [`HyperLogLog::with_line_mapper`]. If provided, this function will be applied to each
-/// line before checking if it is unique or not. Note that this also affects the output that will be
-/// seen from functions that enumerate internal state, such as
-/// [`EmitLines::for_each_line`](crate::EmitLines::for_each_line).
 #[derive(Clone)]
 pub struct HyperLogLog {
     size: usize,

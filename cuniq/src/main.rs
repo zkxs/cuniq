@@ -120,17 +120,19 @@ fn count(args: CliArgs) -> Result<(), Error> {
             cfg_if! {
                 if #[cfg(feature = "parallel")] {
                     let threads = args.threads.unwrap_or_else(num_cpus::get);
-                    if threads > 1 {
+                    let count = if threads > 1 {
                         parallel_process_input(&args, &mut processor, threads)?;
+                        processor.0.count_multithreaded(threads)
                     } else {
                         process_input(&args, &mut processor)?;
-                    }
+                        processor.0.count()
+                    };
                 } else {
                     process_input(&args, &mut processor)?;
+                    let count = processor.0.count();
                 }
             }
-            let mut processor = processor.0;
-            println!("{}", processor.count());
+            println!("{}", count);
             std::mem::forget(processor); // same explanation as above
         }
         Mode::NearExact => {
@@ -139,17 +141,19 @@ fn count(args: CliArgs) -> Result<(), Error> {
             cfg_if! {
                 if #[cfg(feature = "parallel")] {
                     let threads = args.threads.unwrap_or_else(num_cpus::get);
-                    if threads > 1 {
+                    let count = if threads > 1 {
                         parallel_process_input(&args, &mut processor, threads)?;
+                        processor.0.count_multithreaded(threads)
                     } else {
                         process_input(&args, &mut processor)?;
-                    }
+                        processor.0.count()
+                    };
                 } else {
                     process_input(&args, &mut processor)?;
+                    let count = processor.0.count();
                 }
             }
-            let mut processor = processor.0;
-            println!("{}", processor.count());
+            println!("{}", count);
             std::mem::forget(processor); // same explanation as above
         }
         Mode::Estimate => {
@@ -164,17 +168,19 @@ fn count(args: CliArgs) -> Result<(), Error> {
             cfg_if! {
                 if #[cfg(feature = "parallel")] {
                     let threads = args.threads.unwrap_or_else(num_cpus::get);
-                    if threads > 1 {
+                    let count = if threads > 1 {
                         parallel_process_input(&args, &mut processor, threads)?;
+                        processor.0.count_multithreaded(threads)
                     } else {
                         process_input(&args, &mut processor)?;
-                    }
+                        processor.0.count()
+                    };
                 } else {
                     process_input(&args, &mut processor)?;
+                    let count = processor.0.count();
                 }
             }
-            let mut processor = processor.0;
-            println!("{}", processor.count());
+            println!("{}", count);
             std::mem::forget(processor); // same explanation as above
         }
     }

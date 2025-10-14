@@ -17,11 +17,6 @@ struct Entry<T> {
 /// This may be expensive to drop if it contains a large amount of processed data, so using
 /// [`std::mem::forget`] may be worth considering if your application will terminate immediately
 /// after finishing the unique-counting work.
-///
-/// This implementation also has accepts a customizable `line_mapper` function with
-/// [`LosslessHashingLineCounter::with_line_mapper`]. If provided, this function will be applied to each
-/// line before checking if it is unique or not. Note that this also affects the output that will be
-/// seen from functions that enumerate internal state, such as [`EmitLines::for_each_line`].
 pub struct LosslessHashingLineCounter<T> {
     map: HashTable<Entry<T>>,
     count: usize,

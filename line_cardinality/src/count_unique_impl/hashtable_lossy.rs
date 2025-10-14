@@ -7,16 +7,10 @@ use crate::{CountUnique, CountUniqueHash};
 
 /// Calculates the unique count and holds necessary state.
 ///
-/// Internally, a [`HashTable`] is created that contains an entry for each distinct line in the
+/// Internally, a [`HashTable`] is created that contains an entry for each distinct hashed line in the
 /// input. This may be expensive to drop if it contains a large amount of processed data, so using
 /// [`std::mem::forget`] may be worth considering if your application will terminate immediately
 /// after finishing the unique-counting work.
-///
-/// This implementation also has accepts a customizable `line_mapper` function with
-/// [`LossyHashingLineCounter::with_line_mapper`]. If provided, this function will be applied to
-/// each line before checking if it is unique or not. Note that this also affects the output that
-/// will be seen from functions that enumerate internal state, such as
-/// [`EmitLines::for_each_line`](crate::EmitLines::for_each_line).
 pub struct LossyHashingLineCounter {
     map: HashTable<u64>,
     count: usize,

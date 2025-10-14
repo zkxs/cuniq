@@ -4,6 +4,15 @@
 use crate::{CountUnique, CountUniqueHash};
 use voracious_radix_sort::RadixSort;
 
+/// Calculates the unique count and holds necessary state.
+///
+/// Internally, a [`Vec`] is created that contains an entry for each distinct hashed line in the
+/// input. This may be expensive to drop if it contains a large amount of processed data, so using
+/// [`std::mem::forget`] may be worth considering if your application will terminate immediately
+/// after finishing the unique-counting work.
+///
+/// This implementation uniquely performs a radix sort when [`count`](CountUnique::count) is called, which is expensive
+/// so you should consider caching the result.
 pub struct LossySortingLineCounter {
     line_hashes: Vec<u64>,
 }
