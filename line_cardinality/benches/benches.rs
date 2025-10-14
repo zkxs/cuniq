@@ -17,6 +17,10 @@ use line_cardinality::{
     LossyHashingLineCounter, LossySortingLineCounter,
 };
 
+// require certain features for this benchmark
+#[cfg(not(all(feature = "parallel")))]
+compile_error!("missing required features");
+
 criterion_group!(benches, bench_tweaks);
 criterion_main!(benches);
 
