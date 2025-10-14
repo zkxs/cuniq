@@ -60,6 +60,7 @@ where
         }
 
         let (hash_sender, hash_receiver) = crossbeam_channel::bounded::<Vec<(&[u8], u64)>>(0);
+        let (vec_reuse_sender, vec_reuse_receiver) = crossbeam_channel::bounded::<Vec<(&[u8], u64)>>(threads * 2);
 
         thread::scope(|scope| {
             // create worker threads and a channel to read the chunks
@@ -70,10 +71,11 @@ where
                 (0..threads).for_each(|_| {
                     let chunk_receiver = chunk_receiver.clone();
                     let hash_sender = hash_sender.clone();
+                    let vec_reuse_receiver = vec_reuse_receiver.clone();
                     let random_state = random_state.clone();
                     scope.spawn(move || {
                         while let Ok(bytes) = chunk_receiver.recv() {
-                            let mut hashes = Vec::new();
+                            let mut hashes = vec_reuse_receiver.try_recv().unwrap_or_default();
                             let mut start: usize = 0;
                             for newline_index in memchr::memchr_iter(b'\n', bytes) {
                                 let line = &bytes[start..newline_index];
@@ -117,10 +119,12 @@ where
                 // I want this to get dropped at a specific time, so I move it into this block
                 let hash_receiver = hash_receiver;
 
-                while let Ok(hashes) = hash_receiver.recv() {
-                    for (line, hash) in hashes {
-                        self.0.count_line(line, hash, |line| random_state.hash_one(line));
+                while let Ok(mut hashes) = hash_receiver.recv() {
+                    for (line, hash) in &hashes {
+                        self.0.count_line(line, *hash, |line| random_state.hash_one(line));
                     }
+                    hashes.clear();
+                    let _ = vec_reuse_sender.try_send(hashes);
                 }
                 // this cannot end until all hash senders are done, so no need to join on them
             }
@@ -162,6 +166,7 @@ where
         }
 
         let (hash_sender, hash_receiver) = crossbeam_channel::bounded::<Vec<u64>>(0);
+        let (vec_reuse_sender, vec_reuse_receiver) = crossbeam_channel::bounded::<Vec<u64>>(threads * 2);
 
         thread::scope(|scope| {
             // create worker threads and a channel to read the chunks
@@ -172,19 +177,22 @@ where
                 (0..threads).for_each(|_| {
                     let chunk_receiver = chunk_receiver.clone();
                     let hash_sender = hash_sender.clone();
+                    let vec_reuse_receiver = vec_reuse_receiver.clone();
                     let random_state = random_state.clone();
                     scope.spawn(move || {
                         while let Ok(bytes) = chunk_receiver.recv() {
-                            let mut hashes = Vec::new();
+                            let mut hashes = vec_reuse_receiver.try_recv().unwrap_or_default();
                             let mut start: usize = 0;
                             for newline_index in memchr::memchr_iter(b'\n', bytes) {
-                                let hash = random_state.hash_one(&bytes[start..newline_index]);
+                                let line = &bytes[start..newline_index];
+                                let hash = random_state.hash_one(line);
                                 hashes.push(hash);
                                 start = newline_index + 1;
                             }
                             // handle trailing
                             if start < bytes.len() {
-                                let hash = random_state.hash_one(&bytes[start..]);
+                                let line = &bytes[start..];
+                                let hash = random_state.hash_one(line);
                                 hashes.push(hash);
                             }
                             hash_sender
@@ -217,10 +225,12 @@ where
                 // I want this to get dropped at a specific time, so I move it into this block
                 let hash_receiver = hash_receiver;
 
-                while let Ok(hashes) = hash_receiver.recv() {
-                    for hash in hashes {
-                        self.0.count_hash(hash);
+                while let Ok(mut hashes) = hash_receiver.recv() {
+                    for hash in &hashes {
+                        self.0.count_hash(*hash);
                     }
+                    hashes.clear();
+                    let _ = vec_reuse_sender.try_send(hashes);
                 }
                 // this cannot end until all hash senders are done, so no need to join on them
             }
