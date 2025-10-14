@@ -8,13 +8,14 @@ use std::io::BufReader;
 use std::path::PathBuf;
 
 use ahash::RandomState;
-use bstr::io::BufReadExt;
 use bstr::ByteSlice;
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use bstr::io::BufReadExt;
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
 use crate::baked_in_hash::BakedInHashLineCounter;
 use line_cardinality::{
-    CountUnique, CountUniqueHash, CountUniqueLineHash, HyperLogLog, LosslessHashingLineCounter, LossyHashingLineCounter,
+    CountUnique, CountUniqueHash, CountUniqueLineHash, HyperLogLog, LosslessHashingLineCounter,
+    LossyHashingLineCounter, LossySortingLineCounter,
 };
 
 criterion_group!(benches, bench_tweaks);
@@ -22,7 +23,7 @@ criterion_main!(benches);
 
 mod baked_in_hash;
 
-/// primary test condition for comparing high cardinality
+/// primary test condition
 const TEST_FILE_ENGLISH_WORDS: TestFile = TestFile::new("hamlet_words.txt", 5414);
 
 /// one-off count of the lowercase distinct words for a certain benchmark
@@ -147,6 +148,46 @@ fn bench_tweaks(c: &mut Criterion) {
                     })
                     .unwrap();
                 assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
+    });
+
+    // hashed radix sort implementation
+    group.bench_function("radix", |bencher| {
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |file| {
+                let mut reader = BufReader::new(file);
+                let hasher = init_hasher_state();
+                let mut processor = LossySortingLineCounter::default();
+                reader
+                    .for_byte_line(|line| {
+                        processor.count_hash(hasher.hash_one(line));
+                        Ok(true)
+                    })
+                    .unwrap();
+                assert_eq!(processor.count(), TEST_FILE_ENGLISH_WORDS.expected);
+            },
+            FILE_HANDLE_BATCH_SIZE,
+        );
+    });
+
+    // hashed radix sort implementation
+    group.bench_function("radix.mt", |bencher| {
+        bencher.iter_batched(
+            || TEST_FILE_ENGLISH_WORDS.open(),
+            |file| {
+                let mut reader = BufReader::new(file);
+                let hasher = init_hasher_state();
+                let mut processor = LossySortingLineCounter::default();
+                reader
+                    .for_byte_line(|line| {
+                        processor.count_hash(hasher.hash_one(line));
+                        Ok(true)
+                    })
+                    .unwrap();
+                assert_eq!(processor.count_multithreaded(16), TEST_FILE_ENGLISH_WORDS.expected);
             },
             FILE_HANDLE_BATCH_SIZE,
         );

@@ -142,7 +142,7 @@ impl HyperLogLog {
 }
 
 impl CountUnique for HyperLogLog {
-    fn count(&self) -> usize {
+    fn count(&mut self) -> usize {
         HyperLogLog::count(self)
     }
 

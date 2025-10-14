@@ -54,7 +54,7 @@ impl<C> LosslessHashingLineCounter<C> {
 }
 
 impl<C> CountUnique for LosslessHashingLineCounter<C> {
-    fn count(&self) -> usize {
+    fn count(&mut self) -> usize {
         self.count
     }
 

@@ -8,12 +8,23 @@ instead.
 to cuniq. However, if you've been using `sort | uniq | wc -l` you should switch to `sort -u | wc -l`, as it's free
 performance gain without having to go outside GNU coreutils.
 
+## Features
+
+- Multithreading support
+- Show a report of the number of times each distinct line appears with `--report`
+- `--mode=near-exact` gains extra performance by ignoring hash collisions. With 64-bit hashing the
+  [odds of a collision](https://en.wikipedia.org/wiki/Birthday_attack) are low. Unless you have in excess of 10 million
+  distinct lines you don't need to worry about it.
+- `--mode=estimate` gains even more performance by using a [probabilistic estimate](https://en.wikipedia.org/wiki/HyperLogLog)
+  instead of an exact count. Useful if you can tolerate a small (~1%) margin of error.
+
 ## Performance
 
+As of this writing and to the best of my knowledge, **cuniq has the best performance across all tools in its class**.
 cuniq has been benchmarked against various combinations of GNU coreutils (sort, uniq, and wc) as well as other
 hashing-based Rust utilities [runiq](https://crates.io/crates/runiq), [sortuniq](https://crates.io/crates/sortuniq),
 and [huniq](https://crates.io/crates/huniq).
-As of this writing, you should not use runiq 2.0.0 or sortuniq 0.2.0 for counting unique lines: they underperform cuniq
+You should not use runiq 2.0.0 or sortuniq 0.3.0 for counting unique lines: they underperform cuniq
 in all cases, and in many cases their performance is on par with or even worse than `sort -u | wc -l`.
 
 For **counting** cuniq reliably outperforms GNU sort in all cases.
@@ -22,7 +33,7 @@ For **reporting line occurrence counts** cuniq reliably outperforms GNU uniq in 
 
 > [!NOTE]
 > If your input has extremely few duplicates and you want a sorted report, than you're better off using `sort | uniq -c`.
-> This is because with extremely few duplicates both approaches must sort nearly all of the input, but cuniq also wastes
+> This is because with extremely few duplicates both approaches must sort nearly all of the input, but cuniq also spends
 > time building a hash table.
 
 More data and technical details on the benchmarking and profile-guided optimization that went into creating cuniq are

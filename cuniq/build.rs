@@ -30,7 +30,7 @@ fn create_constants<P: AsRef<Path>>(path: P) -> io::Result<()> {
 
 /// override version string displayed by clap
 fn clap_version(git_commit_hash: &str) -> String {
-    format!("{} commit {}\\nBuilt with feature flags: [{}]\\nCopyright 2024 cuniq contributors\\nLicense: GNU GPL v3.0 or any later version\\nWritten by: {}",
+    format!("{} commit {}\\nBuilt with feature flags: [{}]\\nCopyright 2025 cuniq contributors\\nLicense: GNU GPL v3.0 or any later version\\nWritten by: {}",
             env!("CARGO_PKG_VERSION"),
             git_commit_hash, feature_diff(),
             env!("CARGO_PKG_AUTHORS"),

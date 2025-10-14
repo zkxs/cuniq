@@ -129,7 +129,7 @@ fn count(args: CliArgs) -> Result<(), Error> {
                     process_input(&args, &mut processor)?;
                 }
             }
-            let processor = processor.0;
+            let mut processor = processor.0;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
         }
@@ -148,7 +148,7 @@ fn count(args: CliArgs) -> Result<(), Error> {
                     process_input(&args, &mut processor)?;
                 }
             }
-            let processor = processor.0;
+            let mut processor = processor.0;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
         }
@@ -173,7 +173,7 @@ fn count(args: CliArgs) -> Result<(), Error> {
                     process_input(&args, &mut processor)?;
                 }
             }
-            let processor = processor.0;
+            let mut processor = processor.0;
             println!("{}", processor.count());
             std::mem::forget(processor); // same explanation as above
         }

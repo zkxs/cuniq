@@ -49,7 +49,7 @@ impl LossyHashingLineCounter {
 }
 
 impl CountUnique for LossyHashingLineCounter {
-    fn count(&self) -> usize {
+    fn count(&mut self) -> usize {
         self.count
     }
 

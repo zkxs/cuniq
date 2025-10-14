@@ -7,4 +7,5 @@ pub(crate) mod hashtable_lossless;
 pub(crate) mod hashtable_lossy;
 pub(crate) mod hyperloglog;
 pub(crate) mod increment;
+pub(crate) mod radixsort_lossy;
 pub(crate) mod result;

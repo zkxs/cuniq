@@ -18,6 +18,7 @@ pub use count_unique_impl::hashtable_lossless::{
 pub use count_unique_impl::hashtable_lossy::LossyHashingLineCounter;
 pub use count_unique_impl::hyperloglog::HyperLogLog;
 pub use count_unique_impl::increment::Increment;
+pub use count_unique_impl::radixsort_lossy::LossySortingLineCounter;
 pub use count_unique_impl::result::Cause as ErrorCause;
 pub use count_unique_impl::result::Error;
 
@@ -49,10 +50,17 @@ pub(crate) mod count_unique_impl;
 /// ```
 pub trait CountUnique {
     /// Returns current cardinality count of the [`CountUnique`].
-    fn count(&self) -> usize;
+    fn count(&mut self) -> usize;
 
     /// Resets internal state of this [`CountUnique`] for reuse
     fn reset(&mut self);
+
+    /// Performs a multithreaded count if `threads` > 1, otherwise falls back to a singlethreaded count. Most
+    /// implementations do not support multithreading.
+    fn count_multithreaded(&mut self, threads: usize) -> usize {
+        let _ = threads;
+        self.count()
+    }
 }
 
 /// A [`CountUnique`] that stores line and hash information. This enables lossless handling of hash
