@@ -11,7 +11,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 
 // require certain features for this benchmark
-#[cfg(not(all(feature = "parallel")))]
+#[cfg(not(all(feature = "memmap", feature = "parallel")))]
 compile_error!("missing required features");
 
 // Require that we don't have compile-time-rng, which would cause the binary and the bench to use different RNG seeds.
