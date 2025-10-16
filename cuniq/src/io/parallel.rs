@@ -145,6 +145,7 @@ where
     where
         H: BuildHasher + Clone + Send,
     {
+        //TODO: this is a shit copy-paste job of the function above. Consider learning macros OR using a generic helper function to dedupe all this code
         let mut mem_maps = Vec::with_capacity(files.len());
         for file in files {
             // SAFETY: dealing with external file modification is out of scope

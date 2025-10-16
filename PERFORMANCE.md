@@ -2,11 +2,14 @@
 
 ## Implementation Details 
 
-cuniq works by storing each unique line in a hash map, meaning it runs in O(*n*) time and uses O(*m*) memory, where *m*
+cuniq works by storing each unique line in a hashtable, meaning it runs in O(*n*) time and uses O(*m*) memory, where *m*
 is the number of distinct lines, or in other words the cardinality of the dataset. This means cuniq will significantly
-outperform sorting-based approaches when the cardinality is low. Where cardinality is very high (with the worst case
-being every line in the dataset being unique) the cost of inserting every item into a hash map starts to outweigh the
-benefit of not sorting.
+outperform sorting-based approaches for most inputs.
+
+In the edge-case where cardinality is very high (with the worst case being every line in the dataset being unique) the
+cost of inserting every item into a hashtable starts to outweigh the benefit of not sorting. Sorting becomes an even
+stronger option if [hashed radix sorting](https://reiner.org/hashed-sorting) is viable. cuniq currently does not use
+this technique, as it suffers from performance pitfalls on lower cardinality inputs.
 
 For datasets with very large cardinality exact approaches becomes infeasible as it becomes impossible to process the
 dataset in main memory. You will instead need to use a statistical estimate such as HyperLogLog. You can do this with
@@ -35,6 +38,25 @@ Various tweaks to cuniq were implemented and benchmarked. Tweaks that improved p
   main memory.
 - Multithreading further improves performance on systems where allocations or IO are not a bottleneck. HyperLogLog in
   particular benefits from multithreading, as it does not need to allocate.
+
+### Optimization Matrix
+
+| Optimization              | cuniq | sort | huniq | runiq | sortuniq |
+| ------------------------- | ----- | ---- | ----- | ----- | -------- |
+| IO buffering              | ✔️     | ✔️    | ✔️     | ✔️     | ✔️        |
+| skip UTF-8 validation     | ✔️     | ✔️    | ✔️     | ✔️     | ❌        |
+| hashtable                 | ✔️     | ❌    | ✔️     | ✔️     | ✔️        |
+| non-std hash              | ✔️     | N/A  | ✔️     | ✔️     | ❌        |
+| ignore collision          | ✔️     | N/A  | ✔️     | ✔️     | ❌        |
+| SIMD-optimized EOL search | ✔️     | ❌    | ✔️     | ❌     | ❌        |
+| statistical estimation    | ✔️     | ❌    | ❌     | ✔️\*   | ❌        |
+| leak instead of free      | ✔️     | ❌    | ✔️     | ❌     | ❌        |
+| multithreading            | ✔️     | ✔️    | ❌     | ❌     | ❌        |
+| memory-mapped IO          | ✔️     | ❌    | ❌     | ❌     | ❌        |
+| conditional clone         | ✔️     | ❌    | N/A†  | ❌     | ❌        |
+
+\* uses a Bloom filter, which unlike HyperLogLog is not optimized for the count-distinct problem  
+† _only_ supports ignoring collisions, so lines are _never_ cloned
 
 # Benchmarking
 
