@@ -23,9 +23,9 @@ cargo test --package cuniq --no-default-features --features memmap
 #cargo test --package cuniq --benches --no-default-features --features bench # runs benchmarks as test without recording results
 cargo clippy --package line_cardinality --all-features
 cargo clippy --package line_cardinality --no-default-features
-cargo clippy --package line_cardinality --benches
+cargo clippy --package line_cardinality --benches --features bench
 cargo test --package line_cardinality
-cargo test --package line_cardinality --benches # runs benchmarks as test without recording results
+cargo test --package line_cardinality --benches --features bench # runs benchmarks as test without recording results
 ```
 
 Also follow the instructions in [PERFORMANCE.md](PERFORMANCE.md) if you're doing anything perf-sensitive to make sure
